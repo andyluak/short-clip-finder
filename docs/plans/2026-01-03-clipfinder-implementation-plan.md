@@ -7,15 +7,15 @@
 
 ## Phase Overview
 
-| Phase | Focus | Deliverable | Test Checkpoint |
-|-------|-------|-------------|-----------------|
-| **1** | Foundation | Menu bar app shell + window | App launches, shows in menu bar |
-| **2** | Local Pipeline | Transcribe local files | Drop MP4 → see transcript |
-| **3** | AI Analysis | GPT clip suggestions | Transcript → viral clips list |
-| **4** | YouTube Download | yt-dlp integration | Paste URL → download works |
-| **5** | Face Detection | Vision framework tracking | Video → face positions JSON |
-| **6** | Export Engine | FFmpeg 9:16 crop | Clips export with speaker tracking |
-| **7** | Polish | Settings, errors, persistence | Production-ready MVP |
+| Phase | Focus | Deliverable | Test Checkpoint | Status |
+|-------|-------|-------------|-----------------|--------|
+| **1** | Foundation | Menu bar app shell + window | App launches, shows in menu bar | **DONE** |
+| **2** | Local Pipeline | Transcribe local files | Drop MP4 → see transcript | **DONE** |
+| **3** | AI Analysis | GPT clip suggestions | Transcript → viral clips list | **DONE** |
+| **4** | YouTube Download | yt-dlp integration | Paste URL → download works | **DONE** |
+| **5** | Face Detection | Vision framework tracking | Video → face positions JSON | **DONE** |
+| **6** | Export Engine | FFmpeg 9:16 crop | Clips export with speaker tracking | **DONE** |
+| **7** | Polish | Settings, errors, persistence | Production-ready MVP | **DONE** |
 
 ---
 
