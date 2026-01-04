@@ -7,6 +7,25 @@
 
 import SwiftUI
 
+enum ClipSortOrder: String, CaseIterable {
+    case virality = "Virality"
+    case time = "Time"
+}
+
+enum ViralityFilter: String, CaseIterable {
+    case all = "All"
+    case above70 = "70+"
+    case above85 = "85+"
+
+    var minScore: Int {
+        switch self {
+        case .all: return 0
+        case .above70: return 70
+        case .above85: return 85
+        }
+    }
+}
+
 struct ResultsView: View {
     let appState: AppState
     let videoTitle: String
@@ -19,10 +38,25 @@ struct ResultsView: View {
     @State private var focusedClipIndex: Int = 0
     @FocusState private var isListFocused: Bool
 
+    // Sort and filter state
+    @State private var sortOrder: ClipSortOrder = .virality
+    @State private var viralityFilter: ViralityFilter = .all
+
+    /// Filtered and sorted clips based on current settings
+    private var displayedClips: [ClipSuggestion] {
+        let filtered = clips.filter { $0.viralityScore >= viralityFilter.minScore }
+        switch sortOrder {
+        case .virality:
+            return filtered.sorted { $0.viralityScore > $1.viralityScore }
+        case .time:
+            return filtered.sorted { $0.startTime < $1.startTime }
+        }
+    }
+
     /// Currently focused clip (for keyboard navigation)
     private var focusedClip: ClipSuggestion? {
-        guard !clips.isEmpty, focusedClipIndex >= 0, focusedClipIndex < clips.count else { return nil }
-        return clips[focusedClipIndex]
+        guard !displayedClips.isEmpty, focusedClipIndex >= 0, focusedClipIndex < displayedClips.count else { return nil }
+        return displayedClips[focusedClipIndex]
     }
 
     var body: some View {
@@ -35,7 +69,7 @@ struct ResultsView: View {
             Divider()
 
             // Clip list
-            if clips.isEmpty {
+            if displayedClips.isEmpty {
                 emptyState
             } else {
                 clipList
@@ -126,9 +160,9 @@ struct ResultsView: View {
     // MARK: - Keyboard Navigation
 
     private func navigateClip(direction: Int) {
-        guard !clips.isEmpty else { return }
+        guard !displayedClips.isEmpty else { return }
         let newIndex = focusedClipIndex + direction
-        focusedClipIndex = max(0, min(newIndex, clips.count - 1))
+        focusedClipIndex = max(0, min(newIndex, displayedClips.count - 1))
     }
 
     private func toggleFocusedClipExport() {
@@ -141,34 +175,107 @@ struct ResultsView: View {
     }
 
     private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(videoTitle)
-                    .font(.headline)
-                    .lineLimit(1)
+        VStack(spacing: 12) {
+            // Top row: Title and selection badge
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(videoTitle)
+                        .font(.headline)
+                        .lineLimit(1)
 
-                Text("\(clips.count) clips found")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    Text("\(clips.count) clips found")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                // Selection count badge
+                if !selectedClipIDs.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("\(selectedClipIDs.count) of \(displayedClips.count) selected")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color.green.opacity(0.12))
+                    .clipShape(Capsule())
+                }
+
+                Button {
+                    if selectedClipIDs.count == displayedClips.count && !displayedClips.isEmpty {
+                        selectedClipIDs.removeAll()
+                    } else {
+                        selectedClipIDs = Set(displayedClips.map(\.id))
+                    }
+                } label: {
+                    if selectedClipIDs.count == displayedClips.count && !displayedClips.isEmpty {
+                        Text("Deselect All")
+                    } else {
+                        Text("Select All")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
 
-            Spacer()
+            // Bottom row: Sort and filter controls
+            HStack(spacing: 16) {
+                // Sort toggle
+                HStack(spacing: 6) {
+                    Text("Sort:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
 
-            Button {
-                if selectedClipIDs.count == clips.count {
-                    selectedClipIDs.removeAll()
-                } else {
-                    selectedClipIDs = Set(clips.map(\.id))
+                    Picker("Sort", selection: $sortOrder) {
+                        ForEach(ClipSortOrder.allCases, id: \.self) { order in
+                            Text(order.rawValue).tag(order)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 140)
                 }
-            } label: {
-                if selectedClipIDs.count == clips.count {
-                    Text("Deselect All")
-                } else {
-                    Text("Select All \(clips.count)")
+
+                Divider()
+                    .frame(height: 20)
+
+                // Virality filter
+                HStack(spacing: 6) {
+                    Text("Show:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Picker("Filter", selection: $viralityFilter) {
+                        ForEach(ViralityFilter.allCases, id: \.self) { filter in
+                            Text(filter.rawValue).tag(filter)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 160)
+                }
+
+                Spacer()
+
+                // Filtered count if different from total
+                if displayedClips.count != clips.count {
+                    Text("Showing \(displayedClips.count) of \(clips.count)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
+        }
+        .onChange(of: viralityFilter) { _, _ in
+            // Reset focus when filter changes to avoid out-of-bounds
+            focusedClipIndex = 0
+        }
+        .onChange(of: sortOrder) { _, _ in
+            // Reset focus when sort changes
+            focusedClipIndex = 0
         }
     }
 
@@ -176,7 +283,7 @@ struct ResultsView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 12) {
-                    ForEach(Array(clips.enumerated()), id: \.element.id) { index, clip in
+                    ForEach(Array(displayedClips.enumerated()), id: \.element.id) { index, clip in
                         ClipCardView(
                             clip: clip,
                             videoURL: videoURL,
@@ -201,9 +308,9 @@ struct ResultsView: View {
                 .padding(20)
             }
             .onChange(of: focusedClipIndex) { _, newIndex in
-                if newIndex >= 0 && newIndex < clips.count {
+                if newIndex >= 0 && newIndex < displayedClips.count {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        proxy.scrollTo(clips[newIndex].id, anchor: .center)
+                        proxy.scrollTo(displayedClips[newIndex].id, anchor: .center)
                     }
                 }
             }
@@ -212,47 +319,86 @@ struct ResultsView: View {
 
     private var emptyState: some View {
         VStack(spacing: 12) {
-            Image(systemName: "film.stack")
+            Image(systemName: viralityFilter != .all ? "line.3.horizontal.decrease.circle" : "film.stack")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
 
-            Text("No clips found")
-                .font(.headline)
+            if viralityFilter != .all && !clips.isEmpty {
+                Text("No clips match filter")
+                    .font(.headline)
 
-            Text("The AI couldn't identify any viral-worthy moments in this video.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+                Text("No clips have a virality score of \(viralityFilter.minScore) or higher. Try lowering the filter threshold.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                Button("Show All Clips") {
+                    viralityFilter = .all
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            } else {
+                Text("No clips found")
+                    .font(.headline)
+
+                Text("The AI couldn't identify any viral-worthy moments in this video.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
     }
 
     private var footer: some View {
-        HStack {
-            let selectedClips = clips.filter { selectedClipIDs.contains($0.id) }
-            let totalDuration = selectedClips.reduce(0) { $0 + $1.duration }
+        VStack(spacing: 8) {
+            HStack {
+                let selectedClips = clips.filter { selectedClipIDs.contains($0.id) }
+                let totalDuration = selectedClips.reduce(0) { $0 + $1.duration }
 
-            Text("Selected: \(selectedClips.count) clips")
-                .foregroundStyle(.secondary)
+                Text("Selected: \(selectedClips.count) clips")
+                    .foregroundStyle(.secondary)
 
-            Text("•")
-                .foregroundStyle(.secondary)
+                Text("•")
+                    .foregroundStyle(.secondary)
 
-            Text("Total: \(formatDuration(totalDuration))")
-                .foregroundStyle(.secondary)
+                Text("Total: \(formatDuration(totalDuration))")
+                    .foregroundStyle(.secondary)
 
-            Spacer()
+                Spacer()
 
-            Button {
-                appState.showExportSettings = true
-            } label: {
-                Label("Export Selected", systemImage: "square.and.arrow.up")
+                Button {
+                    appState.showExportSettings = true
+                } label: {
+                    Label("Export Selected", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(selectedClipIDs.isEmpty)
+                .help("Export selected clips (Command + Return)")
+                .accessibilityHint("Opens export settings for \(selectedClipIDs.count) selected clips")
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(selectedClipIDs.isEmpty)
-            .help("Export selected clips (⌘↵)")
-            .accessibilityHint("Opens export settings for \(selectedClipIDs.count) selected clips")
+
+            // Keyboard shortcuts hint
+            HStack(spacing: 16) {
+                keyboardHint(key: "Up/Down", action: "Navigate")
+                keyboardHint(key: "Space", action: "Select")
+                keyboardHint(key: "Cmd+Return", action: "Export")
+            }
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
+        }
+    }
+
+    private func keyboardHint(key: String, action: String) -> some View {
+        HStack(spacing: 4) {
+            Text(key)
+                .fontWeight(.medium)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(Color.secondary.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 3))
+            Text(action)
         }
     }
 

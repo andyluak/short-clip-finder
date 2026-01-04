@@ -11,6 +11,14 @@ actor DownloadService {
     private var currentProcess: Process?
     private var isCancelled = false
 
+    // MARK: - Cached Binary Paths (resolved once, reused)
+    private var cachedYTDLPPath: URL?
+    private var cachedFFmpegPath: URL?
+
+    // MARK: - Metadata Cache
+    private static let metadataCacheTTL: TimeInterval = 24 * 60 * 60 // 24 hours
+    private var metadataCache: [String: (metadata: VideoMetadata, timestamp: Date)] = [:]
+
     enum DownloadError: LocalizedError {
         case ytdlpNotFound
         case invalidURL
@@ -70,7 +78,14 @@ actor DownloadService {
     // MARK: - Metadata
 
     func fetchMetadata(url: String) async throws -> VideoMetadata {
-        let ytdlpPath = try getYTDLPPath()
+        // Check cache first
+        if let cached = metadataCache[url],
+           Date().timeIntervalSince(cached.timestamp) < Self.metadataCacheTTL {
+            print("[DownloadService] Using cached metadata for: \(url)")
+            return cached.metadata
+        }
+
+        let ytdlpPath = try resolveYTDLPPath()
         let cacheDir = getCacheDirectory()
 
         print("[DownloadService] Using yt-dlp at: \(ytdlpPath.path)")
@@ -79,13 +94,26 @@ actor DownloadService {
 
         let process = Process()
         process.executableURL = ytdlpPath
-        process.arguments = [
+
+        // Build arguments with performance optimizations
+        var arguments = [
             "--dump-json",
             "--no-download",
             "--no-warnings",
+            "--ignore-config",      // Skip config file loading for faster startup
+            "--no-playlist",        // Don't expand playlists
             "--cache-dir", cacheDir.path,
-            url
         ]
+
+        // Add YouTube-specific optimizations
+        if url.contains("youtube.com") || url.contains("youtu.be") {
+            arguments.append(contentsOf: [
+                "--extractor-args", "youtube:player_skip=configs"
+            ])
+        }
+
+        arguments.append(url)
+        process.arguments = arguments
 
         let outputPipe = Pipe()
         let errorPipe = Pipe()
@@ -126,14 +154,27 @@ actor DownloadService {
         }
 
         do {
-            let metadata = try JSONDecoder().decode(YTDLPMetadata.self, from: outputData)
-            print("[DownloadService] Successfully parsed metadata: \(metadata.title ?? "unknown")")
-            return metadata.toVideoMetadata()
+            let ytdlpMetadata = try JSONDecoder().decode(YTDLPMetadata.self, from: outputData)
+            print("[DownloadService] Successfully parsed metadata: \(ytdlpMetadata.title ?? "unknown")")
+            let metadata = ytdlpMetadata.toVideoMetadata()
+
+            // Cache the metadata
+            metadataCache[url] = (metadata: metadata, timestamp: Date())
+
+            return metadata
         } catch {
             print("[DownloadService] JSON decode error: \(error)")
             print("[DownloadService] Output size: \(outputData.count) bytes")
             print("[DownloadService] Output was: \(String(data: outputData.prefix(500), encoding: .utf8) ?? "nil")")
             throw DownloadError.metadataFailed
+        }
+    }
+
+    /// Clear expired metadata cache entries
+    func clearExpiredCache() {
+        let now = Date()
+        metadataCache = metadataCache.filter { _, value in
+            now.timeIntervalSince(value.timestamp) < Self.metadataCacheTTL
         }
     }
 
@@ -159,33 +200,42 @@ actor DownloadService {
             throw DownloadError.invalidURL
         }
 
-        let ytdlpPath = try getYTDLPPath()
-
-        // First fetch metadata
-        let metadata = try await fetchMetadata(url: url)
-
-        // Notify caller immediately with metadata (for UI update)
-        metadataHandler?(metadata)
-
-        if isCancelled { throw DownloadError.cancelled }
+        let ytdlpPath = try resolveYTDLPPath()
+        let ffmpegPath = try resolveFFmpegPath()
+        let cacheDir = getCacheDirectory()
 
         // Create temp directory for download
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("ClipFinder-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
-        // Download video
-        let outputTemplate = tempDir.appendingPathComponent("%(title)s.%(ext)s").path
+        // Check cache synchronously first for instant title update
+        var notifiedFromCache = false
+        if let cached = metadataCache[url],
+           Date().timeIntervalSince(cached.timestamp) < Self.metadataCacheTTL {
+            metadataHandler?(cached.metadata)
+            notifiedFromCache = true
+        }
 
-        let cacheDir = getCacheDirectory()
-        let ffmpegPath = try getFFmpegPath()
+        // Start metadata fetch in parallel with download setup
+        // This saves 3-8 seconds by not blocking on metadata before downloading
+        let metadataTask = Task { [self] in
+            try await self.fetchMetadata(url: url)
+        }
+
+        if isCancelled {
+            metadataTask.cancel()
+            throw DownloadError.cancelled
+        }
+
+        // Download video - START IMMEDIATELY, don't wait for metadata
+        let outputTemplate = tempDir.appendingPathComponent("%(title)s.%(ext)s").path
 
         let process = Process()
         process.executableURL = ytdlpPath
-        // Flexible format selection with multiple fallbacks
-        // bv*+ba = best video + best audio (any format)
-        // b = best single file
-        process.arguments = [
+
+        // Build arguments with performance optimizations
+        var arguments = [
             "-f", "bv*[height<=1080]+ba/bv*+ba/b",
             "--merge-output-format", "mp4",
             "--ffmpeg-location", ffmpegPath.deletingLastPathComponent().path,
@@ -193,15 +243,26 @@ actor DownloadService {
             "--newline",
             "--no-playlist",
             "--no-warnings",
+            "--ignore-config",       // Skip config file loading
             "--cache-dir", cacheDir.path,
             "--socket-timeout", "30",
-            "--retries", "5",
-            "--fragment-retries", "5",
-            url
+            "--retries", "3",        // Reduced from 5 for faster failure
+            "--fragment-retries", "3", // Reduced from 5
         ]
+
+        // Add YouTube-specific optimizations
+        if url.contains("youtube.com") || url.contains("youtu.be") {
+            arguments.append(contentsOf: [
+                "--extractor-args", "youtube:player_skip=configs"
+            ])
+        }
+
+        arguments.append(url)
+        process.arguments = arguments
 
         print("[DownloadService] Using FFmpeg at: \(ffmpegPath.path)")
         print("[DownloadService] Format: bv*+ba (best video + best audio, up to 1080p)")
+        print("[DownloadService] Starting download immediately (metadata fetching in parallel)")
 
         let outputPipe = Pipe()
         let errorPipe = Pipe()
@@ -250,6 +311,24 @@ actor DownloadService {
             throw DownloadError.downloadFailed("Downloaded file not found")
         }
 
+        // Now wait for metadata (should already be done by now since download takes longer)
+        let metadata: VideoMetadata
+        do {
+            metadata = try await metadataTask.value
+            // Notify handler with final metadata if not already notified from cache
+            if !notifiedFromCache {
+                metadataHandler?(metadata)
+            }
+        } catch {
+            // If metadata fetch failed, create minimal metadata from filename
+            print("[DownloadService] Metadata fetch failed, using filename: \(error)")
+            let filename = videoFile.deletingPathExtension().lastPathComponent
+            metadata = VideoMetadata(title: filename, duration: 0, uploader: nil, thumbnailURL: nil)
+            if !notifiedFromCache {
+                metadataHandler?(metadata)
+            }
+        }
+
         return (videoFile, metadata)
     }
 
@@ -259,9 +338,35 @@ actor DownloadService {
         currentProcess = nil
     }
 
-    // MARK: - Private
+    // MARK: - Binary Path Resolution (Cached)
 
-    private func getYTDLPPath() throws -> URL {
+    /// Resolves yt-dlp path with caching to avoid repeated FileManager calls
+    private func resolveYTDLPPath() throws -> URL {
+        // Return cached path if available
+        if let cached = cachedYTDLPPath {
+            return cached
+        }
+
+        let path = try findYTDLPPath()
+        cachedYTDLPPath = path
+        print("[DownloadService] Cached yt-dlp path: \(path.path)")
+        return path
+    }
+
+    /// Resolves ffmpeg path with caching to avoid repeated FileManager calls
+    private func resolveFFmpegPath() throws -> URL {
+        // Return cached path if available
+        if let cached = cachedFFmpegPath {
+            return cached
+        }
+
+        let path = try findFFmpegPath()
+        cachedFFmpegPath = path
+        print("[DownloadService] Cached ffmpeg path: \(path.path)")
+        return path
+    }
+
+    private func findYTDLPPath() throws -> URL {
         // Check Application Support first (for updates)
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             .appendingPathComponent("ClipFinder")
@@ -296,7 +401,7 @@ actor DownloadService {
         throw DownloadError.ytdlpNotFound
     }
 
-    private func getFFmpegPath() throws -> URL {
+    private func findFFmpegPath() throws -> URL {
         // Check Application Support first (for updates)
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             .appendingPathComponent("ClipFinder")
@@ -322,6 +427,17 @@ actor DownloadService {
         }
 
         throw DownloadError.downloadFailed("FFmpeg not found - cannot merge video and audio")
+    }
+
+    /// Warm up binary paths on initialization to avoid delays on first use
+    func warmUpBinaryPaths() async {
+        do {
+            _ = try resolveYTDLPPath()
+            _ = try resolveFFmpegPath()
+            print("[DownloadService] Binary paths warmed up successfully")
+        } catch {
+            print("[DownloadService] Warning: Failed to warm up binary paths: \(error)")
+        }
     }
 
     private func parseProgress(line: String, progressHandler: @escaping @Sendable (Double, String) -> Void) {

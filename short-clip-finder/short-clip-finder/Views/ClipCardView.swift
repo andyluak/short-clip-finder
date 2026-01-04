@@ -16,103 +16,193 @@ struct ClipCardView: View {
 
     @State private var isHovered = false
     @State private var showTrimPopover = false
+    @State private var isAppearing = false
+
+    // Brand colors
+    private let coralColor = Color(hex: "FF6B35")
+    private let tealColor = Color(hex: "4ECDC4")
 
     var body: some View {
-        HStack(spacing: 16) {
-            // Video Preview
-            VideoPreviewPlayer(
-                videoURL: videoURL,
-                startTime: clip.startTime,
-                endTime: clip.endTime
-            )
-            .frame(width: 160, height: 90)
+        HStack(spacing: 0) {
+            // Selection indicator bar
+            RoundedRectangle(cornerRadius: 2)
+                .fill(isSelected ? coralColor : Color.clear)
+                .frame(width: 4)
+                .padding(.vertical, 8)
 
-            // Content
-            VStack(alignment: .leading, spacing: 8) {
-                // Top row: Badge + Hook
-                HStack(alignment: .top, spacing: 12) {
-                    ViralityBadge(score: clip.viralityScore, level: clip.viralityLevel)
-
-                    Text("\"\(clip.hookQuote)\"")
-                        .font(.system(.body, weight: .medium))
-                        .lineLimit(2)
-                        .foregroundStyle(.primary)
-                }
-
-                // Time info
-                HStack(spacing: 16) {
-                    Label(clip.formattedTimeRange, systemImage: "clock")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Text(clip.formattedDuration)
-                        .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                }
-
-                // Reasoning
-                Text(clip.reasoning)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-
-            Spacer()
-
-            // Actions
-            VStack(spacing: 8) {
-                Toggle(isOn: $isSelected) {
-                    Text("Export")
-                        .font(.caption)
-                }
-                .toggleStyle(.checkbox)
-
-                // Trim button
-                Button {
-                    showTrimPopover = true
-                } label: {
-                    Label("Trim", systemImage: "scissors")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .popover(isPresented: $showTrimPopover, arrowEdge: .trailing) {
-                    TrimPopover(
-                        clip: clip,
+            HStack(spacing: 16) {
+                // Video Preview with enhanced styling
+                ZStack(alignment: .bottomTrailing) {
+                    VideoPreviewPlayer(
                         videoURL: videoURL,
-                        onSave: { newStart, newEnd in
-                            onTrimUpdate?(newStart, newEnd)
-                            showTrimPopover = false
-                        },
-                        onCancel: {
-                            showTrimPopover = false
-                        }
+                        startTime: clip.startTime,
+                        endTime: clip.endTime
                     )
+                    .frame(width: 160, height: 90)
+
+                    // Duration overlay
+                    Text(clip.formattedDuration)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(.black.opacity(0.75))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                        .padding(6)
                 }
+
+                // Content
+                VStack(alignment: .leading, spacing: 10) {
+                    // Top row: Badge + Hook
+                    HStack(alignment: .top, spacing: 12) {
+                        ViralityBadge(score: clip.viralityScore, level: clip.viralityLevel)
+
+                        Text("\"\(clip.hookQuote)\"")
+                            .font(.system(size: 14, weight: .medium))
+                            .lineLimit(2)
+                            .foregroundStyle(.primary)
+                    }
+
+                    // Time info with enhanced styling
+                    HStack(spacing: 12) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                                .font(.system(size: 11))
+                            Text(clip.formattedTimeRange)
+                                .font(.system(size: 12, design: .monospaced))
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+
+                    // Reasoning with better typography
+                    Text(clip.reasoning)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .lineSpacing(2)
+                }
+
+                Spacer()
+
+                // Enhanced Actions
+                VStack(spacing: 10) {
+                    // Selection toggle button
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            isSelected.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(isSelected ? coralColor : .secondary)
+
+                            Text(isSelected ? "Selected" : "Select")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(isSelected ? coralColor : .secondary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(isSelected ? coralColor.opacity(0.12) : Color.secondary.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+
+                    // Trim button
+                    Button {
+                        showTrimPopover = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "scissors")
+                                .font(.system(size: 11))
+                            Text("Trim")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .popover(isPresented: $showTrimPopover, arrowEdge: .trailing) {
+                        TrimPopover(
+                            clip: clip,
+                            videoURL: videoURL,
+                            onSave: { newStart, newEnd in
+                                onTrimUpdate?(newStart, newEnd)
+                                showTrimPopover = false
+                            },
+                            onCancel: {
+                                showTrimPopover = false
+                            }
+                        )
+                    }
+                }
+                .frame(width: 90)
             }
-            .frame(width: 70)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
         }
-        .padding(12)
         .background {
             RoundedRectangle(cornerRadius: 12)
-                .fill(isFocused ? Color.accentColor.opacity(0.08) : (isHovered ? Color.secondary.opacity(0.08) : Color.secondary.opacity(0.04)))
-                .strokeBorder(
-                    isFocused ? Color.accentColor : (isSelected ? Color.accentColor.opacity(0.5) : Color.clear),
-                    lineWidth: isFocused ? 2 : (isSelected ? 2 : 0)
+                .fill(cardBackgroundColor)
+                .shadow(
+                    color: isFocused ? coralColor.opacity(0.15) : Color.black.opacity(0.06),
+                    radius: isFocused ? 8 : 4,
+                    y: 2
                 )
         }
-        .onHover { hovering in
-            isHovered = hovering
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(borderGradient, lineWidth: isFocused ? 2 : (isSelected ? 1.5 : 0))
         }
-        .animation(.easeInOut(duration: 0.15), value: isFocused)
+        .scaleEffect(isFocused ? 1.01 : 1.0)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isFocused)
+        .animation(.easeInOut(duration: 0.2), value: isSelected)
+        .opacity(isAppearing ? 1 : 0)
+        .offset(y: isAppearing ? 0 : 10)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.3)) {
+                isAppearing = true
+            }
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Clip: \(clip.hookQuote)")
         .accessibilityValue("Virality \(clip.viralityScore), \(clip.formattedDuration)")
         .accessibilityHint(isSelected ? "Selected for export. Press Space to deselect." : "Press Space to select for export.")
         .accessibilityAddTraits(isFocused ? .isSelected : [])
+    }
+
+    private var cardBackgroundColor: Color {
+        if isFocused {
+            return Color(hex: "FF6B35").opacity(0.06)
+        } else if isHovered {
+            return Color.secondary.opacity(0.06)
+        } else if isSelected {
+            return Color(hex: "FF6B35").opacity(0.03)
+        } else {
+            return Color.secondary.opacity(0.03)
+        }
+    }
+
+    private var borderGradient: LinearGradient {
+        if isFocused {
+            return LinearGradient(
+                colors: [coralColor, tealColor.opacity(0.6)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else if isSelected {
+            return LinearGradient(
+                colors: [coralColor.opacity(0.6), coralColor.opacity(0.3)],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        } else {
+            return LinearGradient(colors: [.clear], startPoint: .leading, endPoint: .trailing)
+        }
     }
 }
 

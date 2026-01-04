@@ -67,9 +67,9 @@ struct MenuBarView: View {
         switch appState.currentPhase {
         case .downloading(_, let status):
             return status
-        case .transcribing(let progress):
+        case .transcribing(let progress, _):
             return "Transcribing... \(Int(progress * 100))%"
-        case .analyzing(let progress):
+        case .analyzing(let progress, _):
             return "Analyzing... \(Int(progress * 100))%"
         case .complete:
             return "Complete"

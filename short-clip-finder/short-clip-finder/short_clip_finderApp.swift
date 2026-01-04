@@ -14,11 +14,12 @@ struct short_clip_finderApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuBarView(appState: appState)
+            MenuBarPopover(appState: appState)
+                .frame(width: 320)
         } label: {
-            Image(systemName: "film.stack")
+            MenuBarIcon(appState: appState)
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
 
         Window("ClipFinder", id: "main") {
             MainWindow(appState: appState)

@@ -55,6 +55,8 @@ final class AppState {
 
     init() {
         Task {
+            // Warm up binary paths in background to avoid delays on first download
+            await downloadService.warmUpBinaryPaths()
             await loadRecentProjects()
         }
     }
@@ -121,8 +123,8 @@ final class AppState {
                 }
 
                 clipSuggestions = suggestions
-                // Auto-select all clips by default
-                selectedClipIDs = Set(suggestions.map(\.id))
+                // Don't auto-select clips - let user choose
+                selectedClipIDs = []
 
                 currentPhase = .complete
                 currentScreen = .results
@@ -196,7 +198,8 @@ final class AppState {
                 }
 
                 clipSuggestions = suggestions
-                selectedClipIDs = Set(suggestions.map(\.id))
+                // Don't auto-select clips - let user choose
+                selectedClipIDs = []
 
                 currentPhase = .complete
                 currentScreen = .results
