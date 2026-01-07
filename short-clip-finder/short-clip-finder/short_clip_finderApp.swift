@@ -15,7 +15,6 @@ struct short_clip_finderApp: App {
     var body: some Scene {
         MenuBarExtra {
             MenuBarPopover(appState: appState)
-                .frame(width: 320)
         } label: {
             MenuBarIcon(appState: appState)
         }
