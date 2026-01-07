@@ -27,7 +27,10 @@ struct short_clip_finderApp: App {
                 .sheet(isPresented: $showOnboarding) {
                     WelcomeView(isPresented: $showOnboarding)
                 }
-                .background(WindowAccessor())
+                .onReceive(NotificationCenter.default.publisher(for: .openMainWindow)) { _ in
+                    // AppDelegate requested to open main window
+                    openWindow(id: "main")
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 800, height: 600)
@@ -53,32 +56,9 @@ struct short_clip_finderApp: App {
     }
 }
 
-// MARK: - Window Accessor
-
-/// Captures a reference to the main window for AppDelegate to use
-struct WindowAccessor: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async {
-            if let window = view.window {
-                AppDelegate.mainWindow = window
-            }
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        if let window = nsView.window, AppDelegate.mainWindow == nil {
-            AppDelegate.mainWindow = window
-        }
-    }
-}
-
 // MARK: - App Delegate
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    static weak var mainWindow: NSWindow?
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Main window opens automatically via SwiftUI
         NSApp.activate(ignoringOtherApps: true)
@@ -91,44 +71,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        // Check if our stored main window exists and is visible
-        if let mainWindow = AppDelegate.mainWindow, mainWindow.isVisible {
-            return
+        // Only trigger if there are no visible windows at all
+        let hasAnyVisibleWindow = NSApp.windows.contains { window in
+            window.isVisible && window.level == .normal
         }
-
-        // No main window visible, show it
-        showMainWindow()
+        if !hasAnyVisibleWindow {
+            showMainWindow()
+        }
     }
 
     private func showMainWindow() {
-        // Use stored reference to main window
-        if let window = AppDelegate.mainWindow {
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-
-        // Window doesn't exist yet - find by title as fallback
-        if let window = NSApp.windows.first(where: { $0.title == "ClipFinder" }) {
-            AppDelegate.mainWindow = window
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-
-        // Last resort: find any sizeable window that's not a menu bar panel
-        if let window = NSApp.windows.first(where: {
-            $0.contentView != nil &&
-            $0.frame.width > 400 &&
-            $0.level == .normal
-        }) {
-            AppDelegate.mainWindow = window
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-
-        // Just activate - SwiftUI should show the window
+        // Post notification for SwiftUI to handle via openWindow
+        NotificationCenter.default.post(name: .openMainWindow, object: nil)
         NSApp.activate(ignoringOtherApps: true)
     }
+}
+
+// MARK: - Notifications
+
+extension Notification.Name {
+    static let openMainWindow = Notification.Name("openMainWindow")
 }
