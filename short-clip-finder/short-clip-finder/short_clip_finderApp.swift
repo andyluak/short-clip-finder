@@ -12,6 +12,7 @@ struct short_clip_finderApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var appState = AppState()
     @State private var showOnboarding = !OnboardingState.hasCompletedOnboarding
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
         MenuBarExtra {
@@ -80,7 +81,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Main window opens automatically via SwiftUI
-        // Just ensure we're active
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -91,32 +91,44 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        // If no windows are visible when app becomes active, show main window
-        let hasVisibleMainWindow = NSApp.windows.contains { window in
-            window.isVisible && window.identifier?.rawValue == "main"
-        }
-        if !hasVisibleMainWindow {
-            showMainWindow()
-        }
-    }
-
-    private func showMainWindow() {
-        // Try to find existing main window by identifier
-        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" }) {
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+        // Check if our stored main window exists and is visible
+        if let mainWindow = AppDelegate.mainWindow, mainWindow.isVisible {
             return
         }
 
-        // Fall back to stored reference
+        // No main window visible, show it
+        showMainWindow()
+    }
+
+    private func showMainWindow() {
+        // Use stored reference to main window
         if let window = AppDelegate.mainWindow {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
 
-        // If window doesn't exist yet, just activate the app
-        // SwiftUI will create the window
+        // Window doesn't exist yet - find by title as fallback
+        if let window = NSApp.windows.first(where: { $0.title == "ClipFinder" }) {
+            AppDelegate.mainWindow = window
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        // Last resort: find any sizeable window that's not a menu bar panel
+        if let window = NSApp.windows.first(where: {
+            $0.contentView != nil &&
+            $0.frame.width > 400 &&
+            $0.level == .normal
+        }) {
+            AppDelegate.mainWindow = window
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        // Just activate - SwiftUI should show the window
         NSApp.activate(ignoringOtherApps: true)
     }
 }
