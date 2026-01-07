@@ -194,14 +194,14 @@ struct ResultsView: View {
                 if !selectedClipIDs.isEmpty {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Color.cfSuccess)
                         Text("\(selectedClipIDs.count) of \(displayedClips.count) selected")
                             .font(.caption)
                             .fontWeight(.medium)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(Color.green.opacity(0.12))
+                    .background(Color.cfSuccess.opacity(0.12))
                     .clipShape(Capsule())
                 }
 

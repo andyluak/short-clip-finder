@@ -18,15 +18,11 @@ struct ClipCardView: View {
     @State private var showTrimPopover = false
     @State private var isAppearing = false
 
-    // Brand colors
-    private let coralColor = Color(hex: "FF6B35")
-    private let tealColor = Color(hex: "4ECDC4")
-
     var body: some View {
         HStack(spacing: 0) {
             // Selection indicator bar
             RoundedRectangle(cornerRadius: 2)
-                .fill(isSelected ? coralColor : Color.clear)
+                .fill(isSelected ? Color.cfAccent : Color.clear)
                 .frame(width: 4)
                 .padding(.vertical, 8)
 
@@ -95,15 +91,15 @@ struct ClipCardView: View {
                         HStack(spacing: 6) {
                             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundStyle(isSelected ? coralColor : .secondary)
+                                .foregroundStyle(isSelected ? Color.cfAccent : .secondary)
 
                             Text(isSelected ? "Selected" : "Select")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(isSelected ? coralColor : .secondary)
+                                .foregroundStyle(isSelected ? Color.cfAccent : .secondary)
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(isSelected ? coralColor.opacity(0.12) : Color.secondary.opacity(0.08))
+                        .background(isSelected ? Color.cfAccent.opacity(0.12) : Color.secondary.opacity(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                     .buttonStyle(.plain)
@@ -144,7 +140,7 @@ struct ClipCardView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(cardBackgroundColor)
                 .shadow(
-                    color: isFocused ? coralColor.opacity(0.15) : Color.black.opacity(0.06),
+                    color: isFocused ? Color.cfAccent.opacity(0.15) : Color.black.opacity(0.06),
                     radius: isFocused ? 8 : 4,
                     y: 2
                 )
@@ -177,26 +173,26 @@ struct ClipCardView: View {
 
     private var cardBackgroundColor: Color {
         if isFocused {
-            return Color(hex: "FF6B35").opacity(0.06)
+            return Color.cfAccent.opacity(0.06)
         } else if isHovered {
-            return Color.secondary.opacity(0.06)
+            return Color.cfSurfaceHover
         } else if isSelected {
-            return Color(hex: "FF6B35").opacity(0.03)
+            return Color.cfAccent.opacity(0.03)
         } else {
-            return Color.secondary.opacity(0.03)
+            return Color.cfSurfaceElevated
         }
     }
 
     private var borderGradient: LinearGradient {
         if isFocused {
             return LinearGradient(
-                colors: [coralColor, tealColor.opacity(0.6)],
+                colors: [Color.cfAccent, Color.cfSuccess.opacity(0.6)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         } else if isSelected {
             return LinearGradient(
-                colors: [coralColor.opacity(0.6), coralColor.opacity(0.3)],
+                colors: [Color.cfAccent.opacity(0.6), Color.cfAccent.opacity(0.3)],
                 startPoint: .leading,
                 endPoint: .trailing
             )

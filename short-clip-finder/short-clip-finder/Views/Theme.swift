@@ -9,147 +9,46 @@ import SwiftUI
 
 // MARK: - ClipFinder Theme
 
-/// ClipFinder's design system - a cohesive visual identity matching the app icon's warm-cool gradient
+/// ClipFinder's design system - "Editorial Precision"
+/// Inspired by: Linear, Raycast, Arc Browser
+/// Dark-mode native, type-first hierarchy, purposeful motion
 enum Theme {
     // MARK: - Corner Radius
 
     enum CornerRadius {
-        /// Extra small: 4pt - chips, tags
         static let xs: CGFloat = 4
-        /// Small: 6pt - badges, small buttons
         static let sm: CGFloat = 6
-        /// Medium: 8pt - cards, inputs
-        static let md: CGFloat = 8
-        /// Large: 12pt - panels, sheets
-        static let lg: CGFloat = 12
-        /// Extra large: 16pt - modals, large cards
-        static let xl: CGFloat = 16
-        /// Full: 9999pt - pills, circular elements
+        static let md: CGFloat = 10
+        static let lg: CGFloat = 16
+        static let xl: CGFloat = 20
         static let full: CGFloat = 9999
-    }
-
-    // MARK: - Shadows
-
-    enum Shadow {
-        /// Subtle shadow for hover states
-        static let subtle = ShadowStyle(
-            color: Color.black.opacity(0.08),
-            radius: 4,
-            x: 0,
-            y: 2
-        )
-
-        /// Medium shadow for floating elements
-        static let medium = ShadowStyle(
-            color: Color.black.opacity(0.12),
-            radius: 8,
-            x: 0,
-            y: 4
-        )
-
-        /// Strong shadow for modals, dropdowns
-        static let strong = ShadowStyle(
-            color: Color.black.opacity(0.16),
-            radius: 16,
-            x: 0,
-            y: 8
-        )
-
-        /// Glow effect using primary color
-        static let glow = ShadowStyle(
-            color: Color.cfCoral.opacity(0.4),
-            radius: 12,
-            x: 0,
-            y: 0
-        )
     }
 
     // MARK: - Typography
 
     enum Typography {
-        /// Large title - SF Pro Display Bold 28pt
-        static let largeTitle = Font.system(size: 28, weight: .bold, design: .default)
-        /// Title 1 - SF Pro Display Semibold 22pt
-        static let title1 = Font.system(size: 22, weight: .semibold, design: .default)
-        /// Title 2 - SF Pro Display Semibold 18pt
-        static let title2 = Font.system(size: 18, weight: .semibold, design: .default)
-        /// Title 3 - SF Pro Display Medium 16pt
-        static let title3 = Font.system(size: 16, weight: .medium, design: .default)
-        /// Headline - SF Pro Display Medium 14pt
-        static let headline = Font.system(size: 14, weight: .medium, design: .default)
-        /// Body - SF Pro Text Regular 14pt
-        static let body = Font.system(size: 14, weight: .regular, design: .default)
-        /// Callout - SF Pro Text Regular 13pt
-        static let callout = Font.system(size: 13, weight: .regular, design: .default)
-        /// Caption - SF Pro Text Regular 12pt
-        static let caption = Font.system(size: 12, weight: .regular, design: .default)
-        /// Caption 2 - SF Pro Text Regular 11pt
-        static let caption2 = Font.system(size: 11, weight: .regular, design: .default)
-
-        /// Rounded variant for numbers and badges
-        static let badgeNumber = Font.system(.caption, design: .rounded, weight: .bold)
-        /// Rounded variant for score displays
-        static let scoreDisplay = Font.system(size: 20, weight: .bold, design: .rounded)
-    }
-
-    // MARK: - Gradients
-
-    enum Gradient {
-        /// Primary gradient: Coral to Teal (matching app icon)
-        static let primary = LinearGradient(
-            colors: [.cfCoral, .cfTeal],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-
-        /// Warm gradient: Coral to Orange
-        static let warm = LinearGradient(
-            colors: [.cfCoral, .cfOrange],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-
-        /// Cool gradient: Teal to Blue
-        static let cool = LinearGradient(
-            colors: [.cfTeal, .cfBlue],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-
-        /// Viral gradient: Hot Pink to Orange
-        static let viral = LinearGradient(
-            colors: [.cfViralHotPink, .cfViralOrange],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-
-        /// High potential gradient: Orange to Yellow
-        static let high = LinearGradient(
-            colors: [.cfViralOrange, .cfViralYellow],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-
-        /// Subtle background gradient for cards
-        static let cardBackground = LinearGradient(
-            colors: [
-                Color.cfCoral.opacity(0.05),
-                Color.cfTeal.opacity(0.05)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-
-        /// Mesh-like ambient background
-        static let ambient = LinearGradient(
-            colors: [
-                Color.cfCoral.opacity(0.08),
-                Color.cfTeal.opacity(0.04),
-                Color.cfCoral.opacity(0.04)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+        /// Display Large - 42pt bold, tight tracking
+        static let displayLarge = Font.system(size: 42, weight: .bold)
+        /// Display Medium - 28pt semibold
+        static let displayMedium = Font.system(size: 28, weight: .semibold)
+        /// Title - 20pt semibold
+        static let title = Font.system(size: 20, weight: .semibold)
+        /// Headline - 16pt semibold
+        static let headline = Font.system(size: 16, weight: .semibold)
+        /// Body - 14pt regular
+        static let body = Font.system(size: 14, weight: .regular)
+        /// Caption - 12pt regular
+        static let caption = Font.system(size: 12, weight: .regular)
+        /// Small - 11pt regular
+        static let small = Font.system(size: 11, weight: .regular)
+        /// Tiny - 10pt regular
+        static let tiny = Font.system(size: 10, weight: .regular)
+        /// Monospace - 12pt
+        static let mono = Font.system(size: 12, design: .monospaced)
+        /// Mono small - 11pt
+        static let monoSmall = Font.system(size: 11, design: .monospaced)
+        /// Badge - rounded bold
+        static let badge = Font.system(size: 12, weight: .bold, design: .rounded)
     }
 
     // MARK: - Spacing
@@ -157,10 +56,72 @@ enum Theme {
     enum Spacing {
         static let xs: CGFloat = 4
         static let sm: CGFloat = 8
-        static let md: CGFloat = 12
-        static let lg: CGFloat = 16
-        static let xl: CGFloat = 24
-        static let xxl: CGFloat = 32
+        static let md: CGFloat = 16
+        static let lg: CGFloat = 24
+        static let xl: CGFloat = 32
+        static let xxl: CGFloat = 48
+        static let xxxl: CGFloat = 64
+    }
+
+    // MARK: - Animation
+
+    enum Animation {
+        static let fast = SwiftUI.Animation.easeInOut(duration: 0.15)
+        static let normal = SwiftUI.Animation.easeInOut(duration: 0.25)
+        static let slow = SwiftUI.Animation.easeInOut(duration: 0.4)
+        static let spring = SwiftUI.Animation.spring(response: 0.3, dampingFraction: 0.7)
+    }
+
+    // MARK: - Shadows
+
+    enum Shadow {
+        static let subtle = ShadowStyle(
+            color: Color.black.opacity(0.1),
+            radius: 4,
+            x: 0,
+            y: 2
+        )
+
+        static let medium = ShadowStyle(
+            color: Color.black.opacity(0.15),
+            radius: 8,
+            x: 0,
+            y: 4
+        )
+
+        static let glow = ShadowStyle(
+            color: Color.cfAccent.opacity(0.4),
+            radius: 12,
+            x: 0,
+            y: 0
+        )
+    }
+
+    // MARK: - Gradients (minimal use)
+
+    enum Gradient {
+        /// Accent gradient for special buttons
+        static let accent = LinearGradient(
+            colors: [.cfAccent, .cfAccentHover],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+
+        /// Subtle background gradient
+        static let subtle = LinearGradient(
+            colors: [
+                Color.cfAccent.opacity(0.05),
+                Color.cfAccent.opacity(0.02)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+
+        /// Warm gradient (legacy compatibility - maps to accent)
+        static let warm = accent
+
+        /// Primary gradient (legacy compatibility - maps to accent)
+        static let primary = accent
     }
 }
 
@@ -176,54 +137,81 @@ struct ShadowStyle {
 // MARK: - Color Extension
 
 extension Color {
-    // MARK: - Primary Palette (from app icon)
+    // MARK: - Primary Accent (Amber)
 
-    /// Coral - Primary accent color (#FF6B35)
-    static let cfCoral = Color(light: .init(hex: 0xFF6B35), dark: .init(hex: 0xFF7F50))
+    /// Accent - Warm amber (#F59E0B)
+    static let cfAccent = Color(hex: "F59E0B")
 
-    /// Teal - Secondary accent color (#4ECDC4)
-    static let cfTeal = Color(light: .init(hex: 0x4ECDC4), dark: .init(hex: 0x5FD9D1))
-
-    /// Orange - Warm accent (#FF8C42)
-    static let cfOrange = Color(light: .init(hex: 0xFF8C42), dark: .init(hex: 0xFFA05A))
-
-    /// Blue - Cool accent (#2E86AB)
-    static let cfBlue = Color(light: .init(hex: 0x2E86AB), dark: .init(hex: 0x4A9DC4))
-
-    // MARK: - Virality Colors
-
-    /// Hot Pink - Viral tier (#FF3366)
-    static let cfViralHotPink = Color(light: .init(hex: 0xFF3366), dark: .init(hex: 0xFF4D7A))
-
-    /// Viral Orange - High tier (#FF6B35)
-    static let cfViralOrange = Color(light: .init(hex: 0xFF6B35), dark: .init(hex: 0xFF7F50))
-
-    /// Viral Yellow - Medium tier (#FFD23F)
-    static let cfViralYellow = Color(light: .init(hex: 0xFFD23F), dark: .init(hex: 0xFFDA5C))
+    /// Accent Hover - Darker amber (#D97706)
+    static let cfAccentHover = Color(hex: "D97706")
 
     // MARK: - Semantic Colors
 
-    /// Success color - matches Teal
-    static let cfSuccess = cfTeal
+    /// Success - Emerald (#10B981)
+    static let cfSuccess = Color(hex: "10B981")
 
-    /// Warning color - matches Viral Orange
-    static let cfWarning = cfViralOrange
+    /// Warning - Amber (#F59E0B)
+    static let cfWarning = Color(hex: "F59E0B")
 
-    /// Error color - matches Hot Pink
-    static let cfError = cfViralHotPink
+    /// Error - Red (#EF4444)
+    static let cfError = Color(hex: "EF4444")
 
-    // MARK: - Background Colors
+    // MARK: - Surface Colors (Zinc palette)
 
-    /// Card background with subtle gradient tint
-    static let cfCardBackground = Color(light: .white, dark: .init(hex: 0x1E1E1E))
+    /// Surface - Base background (#18181B)
+    static let cfSurface = Color(light: .init(hex: "FAFAFA"), dark: .init(hex: "18181B"))
 
-    /// Elevated surface background
-    static let cfElevatedBackground = Color(light: .init(hex: 0xFAFAFA), dark: .init(hex: 0x2A2A2A))
+    /// Surface Elevated - Cards, panels (#27272A)
+    static let cfSurfaceElevated = Color(light: .init(hex: "F4F4F5"), dark: .init(hex: "27272A"))
 
-    /// Subtle tinted background
-    static let cfTintedBackground = Color(light: .init(hex: 0xFFF5F2), dark: .init(hex: 0x2D2420))
+    /// Surface Hover - Interactive hover state (#3F3F46)
+    static let cfSurfaceHover = Color(light: .init(hex: "E4E4E7"), dark: .init(hex: "3F3F46"))
 
-    // MARK: - Initializers for Adaptive Colors
+    // MARK: - Text Colors
+
+    /// Text Primary - High contrast (#FAFAFA / #18181B)
+    static let cfTextPrimary = Color(light: .init(hex: "18181B"), dark: .init(hex: "FAFAFA"))
+
+    /// Text Secondary - Medium contrast (#A1A1AA / #71717A)
+    static let cfTextSecondary = Color(light: .init(hex: "71717A"), dark: .init(hex: "A1A1AA"))
+
+    /// Text Muted - Low contrast (#71717A / #52525B)
+    static let cfTextMuted = Color(light: .init(hex: "A1A1AA"), dark: .init(hex: "71717A"))
+
+    // MARK: - Border Colors
+
+    /// Border - Standard borders (#3F3F46 / #E4E4E7)
+    static let cfBorder = Color(light: .init(hex: "E4E4E7"), dark: .init(hex: "3F3F46"))
+
+    /// Border Subtle - Subtle separators (#27272A / #F4F4F5)
+    static let cfBorderSubtle = Color(light: .init(hex: "F4F4F5"), dark: .init(hex: "27272A"))
+
+    // MARK: - Virality Score Colors
+
+    /// Viral tier - Hot red (#EF4444)
+    static let cfViralHot = Color(hex: "EF4444")
+
+    /// High tier - Amber (#F59E0B)
+    static let cfViralHigh = Color(hex: "F59E0B")
+
+    /// Medium tier - Emerald (#10B981)
+    static let cfViralMedium = Color(hex: "10B981")
+
+    /// Low tier - Gray (#6B7280)
+    static let cfViralLow = Color(hex: "6B7280")
+
+    // MARK: - Legacy Compatibility (for gradual migration)
+
+    /// Legacy coral - now maps to accent
+    static let cfCoral = cfAccent
+
+    /// Legacy teal - now maps to success
+    static let cfTeal = cfSuccess
+
+    /// Legacy orange - now maps to warning
+    static let cfOrange = cfWarning
+
+    // MARK: - Initializers
 
     init(light: Color, dark: Color) {
         self.init(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
@@ -236,6 +224,8 @@ extension Color {
         }))
     }
 
+    // Note: init(hex: String) is defined in ViralityBadge.swift
+
     init(hex: UInt, alpha: Double = 1.0) {
         self.init(
             .sRGB,
@@ -247,7 +237,7 @@ extension Color {
     }
 }
 
-// MARK: - View Extensions for Shadows
+// MARK: - View Extensions
 
 extension View {
     /// Apply a theme shadow style
@@ -256,13 +246,103 @@ extension View {
     }
 }
 
-// MARK: - Gradient Button Modifier
+// MARK: - Keyboard Hint Component
+
+struct KeyboardHint: View {
+    let key: String
+    let label: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(key)
+                .font(Theme.Typography.tiny)
+                .fontWeight(.medium)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(Color.cfSurfaceHover)
+                .clipShape(RoundedRectangle(cornerRadius: 3))
+
+            Text(label)
+                .font(Theme.Typography.small)
+        }
+        .foregroundStyle(.secondary)
+    }
+}
+
+// MARK: - Phase Step Component
+
+struct PhaseStep: View {
+    let number: Int
+    let label: String
+    let isComplete: Bool
+    let isActive: Bool
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(circleColor)
+                    .frame(width: 32, height: 32)
+
+                if isComplete {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.black)
+                } else {
+                    Text("\(number)")
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(isActive ? .black : .secondary)
+                }
+            }
+
+            Text(label)
+                .font(.system(size: 11, weight: isActive ? .semibold : .regular))
+                .foregroundStyle(isActive || isComplete ? .primary : .secondary)
+        }
+    }
+
+    private var circleColor: Color {
+        if isComplete { return .cfSuccess }
+        if isActive { return .cfAccent }
+        return .cfSurfaceElevated
+    }
+}
+
+// MARK: - Phase Connector Component
+
+struct PhaseConnector: View {
+    let isActive: Bool
+
+    var body: some View {
+        Rectangle()
+            .fill(isActive ? Color.cfAccent : Color.cfBorder)
+            .frame(width: 40, height: 2)
+    }
+}
+
+// MARK: - Legacy Gradient Badge (for compatibility)
+
+struct GradientBadge: View {
+    let score: Int
+    let level: ClipSuggestion.ViralityLevel
+
+    init(score: Int, level: ClipSuggestion.ViralityLevel) {
+        self.score = score
+        self.level = level
+    }
+
+    var body: some View {
+        ViralityBadge(score: score, level: level)
+    }
+}
+
+// MARK: - Legacy Button Style (for compatibility)
 
 struct GradientButtonStyle: ButtonStyle {
     var gradient: LinearGradient
     var isDisabled: Bool
 
-    init(gradient: LinearGradient = Theme.Gradient.primary, isDisabled: Bool = false) {
+    init(gradient: LinearGradient = Theme.Gradient.accent, isDisabled: Bool = false) {
         self.gradient = gradient
         self.isDisabled = isDisabled
     }
@@ -270,16 +350,16 @@ struct GradientButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(Theme.Typography.headline)
-            .foregroundStyle(.white)
+            .foregroundColor(isDisabled ? .secondary : .black)
             .padding(.horizontal, Theme.Spacing.lg)
             .padding(.vertical, Theme.Spacing.md)
             .background(
                 RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
-                    .fill(isDisabled ? AnyShapeStyle(Color.gray.opacity(0.3)) : AnyShapeStyle(gradient))
+                    .fill(isDisabled ? Color.cfSurfaceHover : Color.cfAccent)
             )
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .opacity(isDisabled ? 0.6 : (configuration.isPressed ? 0.9 : 1.0))
-            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+            .animation(Theme.Animation.fast, value: configuration.isPressed)
     }
 }
 
@@ -294,166 +374,5 @@ extension ButtonStyle where Self == GradientButtonStyle {
 
     static func gradient(disabled: Bool) -> GradientButtonStyle {
         GradientButtonStyle(isDisabled: disabled)
-    }
-}
-
-// MARK: - Gradient Badge Component
-
-struct GradientBadge: View {
-    let score: Int
-    let level: ClipSuggestion.ViralityLevel
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "flame.fill")
-                .font(.caption)
-
-            Text("\(score)")
-                .font(Theme.Typography.badgeNumber)
-
-            Text(level.rawValue)
-                .font(.system(.caption2, design: .rounded, weight: .medium))
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .foregroundStyle(.white)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
-                .fill(badgeGradient)
-        )
-        .themeShadow(shadowStyle)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Virality score \(score), \(level.rawValue) potential")
-    }
-
-    private var badgeGradient: LinearGradient {
-        switch level {
-        case .viral:
-            Theme.Gradient.viral
-        case .high:
-            Theme.Gradient.high
-        case .medium:
-            LinearGradient(
-                colors: [.cfViralYellow, .cfViralYellow.opacity(0.8)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        case .low:
-            LinearGradient(
-                colors: [Color.secondary.opacity(0.6), Color.secondary.opacity(0.4)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        }
-    }
-
-    private var shadowStyle: ShadowStyle {
-        switch level {
-        case .viral:
-            ShadowStyle(color: .cfViralHotPink.opacity(0.4), radius: 4, x: 0, y: 2)
-        case .high:
-            ShadowStyle(color: .cfViralOrange.opacity(0.3), radius: 3, x: 0, y: 2)
-        case .medium:
-            ShadowStyle(color: .cfViralYellow.opacity(0.3), radius: 2, x: 0, y: 1)
-        case .low:
-            ShadowStyle(color: .clear, radius: 0, x: 0, y: 0)
-        }
-    }
-}
-
-// MARK: - Gradient Text Modifier
-
-struct GradientTextModifier: ViewModifier {
-    var gradient: LinearGradient
-
-    func body(content: Content) -> some View {
-        content
-            .foregroundStyle(gradient)
-    }
-}
-
-extension View {
-    func gradientForeground(_ gradient: LinearGradient = Theme.Gradient.primary) -> some View {
-        modifier(GradientTextModifier(gradient: gradient))
-    }
-}
-
-// MARK: - Previews
-
-#Preview("Theme Colors") {
-    VStack(spacing: 20) {
-        // Primary palette
-        HStack(spacing: 12) {
-            colorSwatch(.cfCoral, name: "Coral")
-            colorSwatch(.cfTeal, name: "Teal")
-            colorSwatch(.cfOrange, name: "Orange")
-            colorSwatch(.cfBlue, name: "Blue")
-        }
-
-        // Virality colors
-        HStack(spacing: 12) {
-            colorSwatch(.cfViralHotPink, name: "Hot Pink")
-            colorSwatch(.cfViralOrange, name: "Viral Orange")
-            colorSwatch(.cfViralYellow, name: "Viral Yellow")
-        }
-    }
-    .padding()
-}
-
-#Preview("Gradients") {
-    VStack(spacing: 16) {
-        gradientSwatch(Theme.Gradient.primary, name: "Primary")
-        gradientSwatch(Theme.Gradient.warm, name: "Warm")
-        gradientSwatch(Theme.Gradient.cool, name: "Cool")
-        gradientSwatch(Theme.Gradient.viral, name: "Viral")
-        gradientSwatch(Theme.Gradient.high, name: "High")
-    }
-    .padding()
-}
-
-#Preview("Gradient Buttons") {
-    VStack(spacing: 16) {
-        Button("Get Started") {}
-            .buttonStyle(GradientButtonStyle())
-
-        Button("Export Clips") {}
-            .buttonStyle(GradientButtonStyle(gradient: Theme.Gradient.warm))
-
-        Button("Disabled State") {}
-            .buttonStyle(GradientButtonStyle(isDisabled: true))
-            .disabled(true)
-    }
-    .padding()
-}
-
-#Preview("Gradient Badges") {
-    VStack(spacing: 12) {
-        GradientBadge(score: 95, level: .viral)
-        GradientBadge(score: 78, level: .high)
-        GradientBadge(score: 62, level: .medium)
-        GradientBadge(score: 35, level: .low)
-    }
-    .padding()
-}
-
-// Helper views for previews
-private func colorSwatch(_ color: Color, name: String) -> some View {
-    VStack(spacing: 4) {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(color)
-            .frame(width: 60, height: 60)
-        Text(name)
-            .font(.caption)
-    }
-}
-
-private func gradientSwatch(_ gradient: LinearGradient, name: String) -> some View {
-    HStack {
-        Text(name)
-            .font(.caption)
-            .frame(width: 60, alignment: .leading)
-        RoundedRectangle(cornerRadius: 8)
-            .fill(gradient)
-            .frame(height: 32)
     }
 }

@@ -12,138 +12,97 @@ import AppKit
 struct EmptyStateView: View {
     let appState: AppState
     @State private var urlText = ""
-    @State private var isTargeted = false
-
-    // Animation states
-    @State private var iconOffset: CGFloat = 0
-    @State private var headerOpacity: Double = 0
-    @State private var inputOpacity: Double = 0
-    @State private var dropZoneOpacity: Double = 0
-    @State private var recentProjectsOpacity: Double = 0
-    @State private var shortcutsOpacity: Double = 0
-    @State private var pulseScale: CGFloat = 1.0
-    @State private var glowOpacity: Double = 0.3
-    @State private var buttonHovered = false
-
-    // Brand colors
-    private let coralColor = Color(red: 1.0, green: 0.45, blue: 0.4)
-    private let tealColor = Color(red: 0.2, green: 0.8, blue: 0.75)
-    private let orangeColor = Color(red: 1.0, green: 0.6, blue: 0.3)
+    @State private var isDropTargeted = false
 
     var body: some View {
-        ZStack {
-            // Subtle radial gradient background
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    coralColor.opacity(0.08),
-                    tealColor.opacity(0.05),
-                    Color.clear
-                ]),
-                center: .center,
-                startRadius: 50,
-                endRadius: 500
-            )
-            .ignoresSafeArea()
+        GeometryReader { geometry in
+            HStack(spacing: 0) {
+                // Left: Main action area
+                VStack(alignment: .leading, spacing: 0) {
+                    Spacer()
 
-            ScrollView {
-                VStack(spacing: 24) {
-                    Spacer(minLength: 32)
+                    // Bold headline
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text("Find viral clips")
+                            .font(Theme.Typography.displayLarge)
+                            .tracking(-0.5)
 
-                    // Floating icon with animation
-                    Image(systemName: "film.stack")
-                        .font(.system(size: 64))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [coralColor, tealColor],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+                        Text("Drop a video or paste a URL to discover\nshare-worthy moments.")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.secondary)
+                            .lineSpacing(4)
+                    }
+
+                    Spacer().frame(height: Theme.Spacing.xxl)
+
+                    // URL Input
+                    HStack(spacing: Theme.Spacing.md) {
+                        TextField("Paste YouTube, Vimeo, or video URL...", text: $urlText)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 15))
+                            .padding(.horizontal, Theme.Spacing.md)
+                            .padding(.vertical, 14)
+                            .background(Color.cfSurfaceElevated)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.md))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
+                                    .strokeBorder(Color.cfBorder, lineWidth: 1)
                             )
-                        )
-                        .offset(y: iconOffset)
-                        .opacity(headerOpacity)
-                        .onAppear {
-                            startFloatingAnimation()
+                            .onSubmit { processURL() }
+
+                        Button(action: processURL) {
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.black)
+                                .frame(width: 48, height: 48)
+                                .background(Color.cfAccent)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.md))
                         }
-
-                    Text("ClipFinder")
-                        .font(.largeTitle)
-                        .fontWeight(.semibold)
-                        .opacity(headerOpacity)
-
-                    Text("Find viral moments in your videos")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                        .opacity(headerOpacity)
-
-                    VStack(spacing: 16) {
-                        VStack(spacing: 12) {
-                            URLInputField(urlString: $urlText) {
-                                processURL()
-                            }
-                            .frame(maxWidth: 500)
-                            .accessibilityLabel("Video URL")
-                            .accessibilityHint("Paste a YouTube, Vimeo, or podcast URL")
-                            .opacity(inputOpacity)
-
-                            // Enhanced "Find Viral Clips" button
-                            Button {
-                                processURL()
-                            } label: {
-                                Label("Find Viral Clips", systemImage: "sparkles")
-                                    .frame(minWidth: 160)
-                                    .padding(.vertical, 4)
-                            }
-                            .buttonStyle(ProminentGradientButtonStyle(
-                                startColor: coralColor,
-                                endColor: orangeColor,
-                                isHovered: buttonHovered
-                            ))
-                            .controlSize(.large)
-                            .disabled(!DownloadService.isValidURL(urlText))
-                            .help("Analyze video and find viral-worthy clips")
-                            .onHover { hovering in
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    buttonHovered = hovering
-                                }
-                            }
-                            .opacity(inputOpacity)
-                        }
-
-                        Text("or")
-                            .foregroundStyle(.tertiary)
-                            .accessibilityHidden(true)
-                            .opacity(dropZoneOpacity)
-
-                        dropZone
-                            .opacity(dropZoneOpacity)
+                        .buttonStyle(.plain)
+                        .disabled(!DownloadService.isValidURL(urlText))
+                        .opacity(DownloadService.isValidURL(urlText) ? 1 : 0.5)
                     }
-                    .padding(.top, 16)
+                    .frame(maxWidth: 500)
 
-                    // Recent Projects Section
-                    if !appState.recentProjects.isEmpty {
-                        recentProjectsSection
-                            .opacity(recentProjectsOpacity)
+                    Spacer().frame(height: Theme.Spacing.lg)
+
+                    // Keyboard hints
+                    HStack(spacing: Theme.Spacing.lg) {
+                        KeyboardHint(key: "⌘N", label: "New URL")
+                        KeyboardHint(key: "⌘O", label: "Open File")
                     }
 
-                    // Keyboard shortcut hints
-                    HStack(spacing: 24) {
-                        shortcutHint("N", label: "New URL")
-                        shortcutHint("O", label: "Open File")
-                        shortcutHint(",", label: "Settings")
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .padding(.bottom, 8)
-                    .opacity(shortcutsOpacity)
-
-                    Spacer(minLength: 32)
+                    Spacer()
                 }
-                .padding(32)
+                .padding(.leading, Theme.Spacing.xxxl)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Right: Drop zone + Recent projects
+                VStack(spacing: Theme.Spacing.lg) {
+                    Spacer()
+
+                    DropZoneView(isTargeted: $isDropTargeted) { url in
+                        appState.processVideo(url: url)
+                    }
+                    .frame(width: 280, height: 200)
+
+                    if !appState.recentProjects.isEmpty {
+                        RecentProjectsGrid(
+                            projects: Array(appState.recentProjects.prefix(4)),
+                            onSelect: { project in
+                                Task { await appState.loadProject(project.id) }
+                            }
+                        )
+                        .frame(width: 280)
+                    }
+
+                    Spacer()
+                }
+                .padding(.trailing, Theme.Spacing.xxxl)
+                .frame(width: geometry.size.width * 0.4)
             }
         }
-        .onAppear {
-            startStaggeredAnimation()
-        }
+        .background(Color.cfSurface)
         .fileImporter(
             isPresented: Binding(
                 get: { appState.shouldShowFilePicker },
@@ -153,138 +112,6 @@ struct EmptyStateView: View {
             allowsMultipleSelection: false
         ) { result in
             handleFileImport(result)
-        }
-    }
-
-    // MARK: - Drop Zone
-
-    private var dropZone: some View {
-        ZStack {
-            // Glow effect behind the drop zone
-            RoundedRectangle(cornerRadius: 12)
-                .fill(
-                    isTargeted
-                    ? coralColor.opacity(0.3)
-                    : tealColor.opacity(glowOpacity * 0.15)
-                )
-                .blur(radius: isTargeted ? 20 : 10)
-                .scaleEffect(isTargeted ? 1.05 : pulseScale)
-
-            // Main drop zone
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(
-                    isTargeted
-                    ? LinearGradient(colors: [coralColor, orangeColor], startPoint: .leading, endPoint: .trailing)
-                    : LinearGradient(colors: [tealColor.opacity(0.4 * pulseScale), coralColor.opacity(0.3 * pulseScale)], startPoint: .leading, endPoint: .trailing),
-                    style: StrokeStyle(lineWidth: isTargeted ? 3 : 2, dash: isTargeted ? [] : [8])
-                )
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(isTargeted ? coralColor.opacity(0.15) : Color.clear)
-                )
-                .overlay {
-                    VStack(spacing: 8) {
-                        Image(systemName: isTargeted ? "arrow.down.circle.fill" : "arrow.down.doc")
-                            .font(.title)
-                            .foregroundStyle(
-                                isTargeted
-                                ? AnyShapeStyle(coralColor)
-                                : AnyShapeStyle(.secondary)
-                            )
-                            .scaleEffect(isTargeted ? 1.2 : 1.0)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isTargeted)
-
-                        Text(isTargeted ? "Release to analyze" : "Drop video file here")
-                            .foregroundStyle(isTargeted ? coralColor : .secondary)
-                            .fontWeight(isTargeted ? .medium : .regular)
-                    }
-                }
-                .scaleEffect(isTargeted ? 1.02 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isTargeted)
-        }
-        .frame(width: 400, height: 120)
-        .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
-            handleDrop(providers)
-        }
-        .accessibilityLabel("Drop zone for video files")
-        .accessibilityHint("Drag and drop a video file to analyze it")
-        .onAppear {
-            startPulseAnimation()
-        }
-    }
-
-    // MARK: - Recent Projects Section
-
-    private var recentProjectsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Recent Projects")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-            }
-            .padding(.horizontal, 4)
-
-            HStack(spacing: 12) {
-                ForEach(appState.recentProjects.prefix(3)) { project in
-                    RecentProjectCard(
-                        project: project,
-                        coralColor: coralColor,
-                        tealColor: tealColor
-                    ) {
-                        Task {
-                            await appState.loadProject(project.id)
-                        }
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: 500)
-        .padding(.top, 24)
-    }
-
-    // MARK: - Animations
-
-    private func startStaggeredAnimation() {
-        // Stagger the fade-in of elements
-        withAnimation(.easeOut(duration: 0.5)) {
-            headerOpacity = 1
-        }
-
-        withAnimation(.easeOut(duration: 0.5).delay(0.15)) {
-            inputOpacity = 1
-        }
-
-        withAnimation(.easeOut(duration: 0.5).delay(0.3)) {
-            dropZoneOpacity = 1
-        }
-
-        withAnimation(.easeOut(duration: 0.5).delay(0.45)) {
-            recentProjectsOpacity = 1
-        }
-
-        withAnimation(.easeOut(duration: 0.5).delay(0.6)) {
-            shortcutsOpacity = 1
-        }
-    }
-
-    private func startFloatingAnimation() {
-        withAnimation(
-            .easeInOut(duration: 2.5)
-            .repeatForever(autoreverses: true)
-        ) {
-            iconOffset = -8
-        }
-    }
-
-    private func startPulseAnimation() {
-        withAnimation(
-            .easeInOut(duration: 2.0)
-            .repeatForever(autoreverses: true)
-        ) {
-            pulseScale = 1.03
-            glowOpacity = 0.6
         }
     }
 
@@ -299,164 +126,150 @@ struct EmptyStateView: View {
         switch result {
         case .success(let urls):
             if let url = urls.first {
-                processFile(url)
+                appState.processVideo(url: url)
             }
         case .failure(let error):
             print("File import error: \(error)")
         }
     }
+}
+
+// MARK: - Drop Zone
+
+struct DropZoneView: View {
+    @Binding var isTargeted: Bool
+    let onDrop: (URL) -> Void
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.lg)
+                .strokeBorder(
+                    isTargeted ? Color.cfAccent : Color.cfBorder,
+                    style: StrokeStyle(lineWidth: 2, dash: isTargeted ? [] : [8, 4])
+                )
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.CornerRadius.lg)
+                        .fill(isTargeted ? Color.cfAccent.opacity(0.1) : Color.clear)
+                )
+
+            VStack(spacing: Theme.Spacing.md) {
+                Image(systemName: isTargeted ? "arrow.down.circle.fill" : "film.stack")
+                    .font(.system(size: 32))
+                    .foregroundStyle(isTargeted ? Color.cfAccent : .secondary)
+
+                Text(isTargeted ? "Release to analyze" : "Drop video file")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(isTargeted ? Color.cfAccent : .secondary)
+            }
+        }
+        .animation(Theme.Animation.normal, value: isTargeted)
+        .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
+            handleDrop(providers)
+        }
+        .accessibilityLabel("Drop zone for video files")
+    }
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else { return false }
 
-        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, error in
+        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
             if let data = item as? Data,
                let url = URL(dataRepresentation: data, relativeTo: nil) {
                 Task { @MainActor in
-                    processFile(url)
+                    onDrop(url)
                 }
             }
         }
         return true
     }
-
-    private func processFile(_ url: URL) {
-        appState.processVideo(url: url)
-    }
-
-    private func shortcutHint(_ key: String, label: String) -> some View {
-        HStack(spacing: 4) {
-            Text("\u{2318}\(key)")
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .background(Color.secondary.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 3))
-            Text(label)
-        }
-        .accessibilityHidden(true)
-    }
 }
 
-// MARK: - Prominent Button Style
+// MARK: - Recent Projects Grid
 
-struct ProminentGradientButtonStyle: ButtonStyle {
-    let startColor: Color
-    let endColor: Color
-    let isHovered: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headline)
-            .foregroundColor(.white)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 10)
-            .background(
-                LinearGradient(
-                    colors: [startColor, endColor],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .shadow(
-                color: startColor.opacity(isHovered ? 0.5 : 0.3),
-                radius: isHovered ? 12 : 6,
-                x: 0,
-                y: isHovered ? 6 : 3
-            )
-            .scaleEffect(configuration.isPressed ? 0.95 : (isHovered ? 1.05 : 1.0))
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isHovered)
-    }
-}
-
-// MARK: - Recent Project Card
-
-struct RecentProjectCard: View {
-    let project: ProjectSummary
-    let coralColor: Color
-    let tealColor: Color
-    let action: () -> Void
-
-    @State private var isHovered = false
-
-    private var formattedDate: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: project.updatedAt, relativeTo: Date())
-    }
+struct RecentProjectsGrid: View {
+    let projects: [ProjectSummary]
+    let onSelect: (ProjectSummary) -> Void
 
     var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 8) {
-                // Thumbnail or placeholder
-                ZStack {
-                    if let thumbnailPath = project.thumbnailPath,
-                       let image = NSImage(contentsOfFile: thumbnailPath) {
-                        Image(nsImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } else {
-                        LinearGradient(
-                            colors: [tealColor.opacity(0.3), coralColor.opacity(0.3)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            Text("RECENT")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.tertiary)
+                .tracking(1)
 
-                        Image(systemName: "film")
-                            .font(.title2)
-                            .foregroundStyle(.white.opacity(0.8))
-                    }
-                }
-                .frame(height: 60)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-
-                // Project info
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(project.title)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-
-                    HStack(spacing: 4) {
-                        Text("\(project.clipCount) clips")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-
-                        Text("*")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-
-                        Text(formattedDate)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+            VStack(spacing: Theme.Spacing.sm) {
+                ForEach(projects) { project in
+                    RecentProjectRow(project: project) {
+                        onSelect(project)
                     }
                 }
             }
-            .frame(width: 140)
-            .padding(10)
+        }
+    }
+}
+
+// MARK: - Recent Project Row
+
+struct RecentProjectRow: View {
+    let project: ProjectSummary
+    let onSelect: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: Theme.Spacing.md) {
+                // Thumbnail
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
+                    .fill(Color.cfSurfaceElevated)
+                    .frame(width: 48, height: 32)
+                    .overlay {
+                        if let path = project.thumbnailPath,
+                           let image = NSImage(contentsOfFile: path) {
+                            Image(nsImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } else {
+                            Image(systemName: "film")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(project.title)
+                        .font(.system(size: 12, weight: .medium))
+                        .lineLimit(1)
+
+                    Text("\(project.clipCount) clips")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .opacity(isHovered ? 1 : 0)
+            }
+            .padding(Theme.Spacing.sm)
             .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.secondary.opacity(isHovered ? 0.15 : 0.08))
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
+                    .fill(isHovered ? Color.cfSurfaceHover : Color.clear)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(
-                        isHovered
-                        ? LinearGradient(colors: [coralColor.opacity(0.5), tealColor.opacity(0.5)], startPoint: .leading, endPoint: .trailing)
-                        : LinearGradient(colors: [Color.clear], startPoint: .leading, endPoint: .trailing),
-                        lineWidth: 1
-                    )
-            )
-            .scaleEffect(isHovered ? 1.02 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            isHovered = hovering
+            withAnimation(Theme.Animation.fast) {
+                isHovered = hovering
+            }
         }
-        .accessibilityLabel("Open project: \(project.title)")
-        .accessibilityHint("\(project.clipCount) clips, last edited \(formattedDate)")
     }
+}
+
+#Preview("Empty State") {
+    EmptyStateView(appState: AppState())
+        .frame(width: 800, height: 600)
 }
