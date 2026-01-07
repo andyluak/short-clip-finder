@@ -6,12 +6,26 @@
 //
 
 import SwiftUI
+import Combine
+
+/// Singleton to bridge AppDelegate and SwiftUI window opening
+final class WindowOpener: ObservableObject {
+    static let shared = WindowOpener()
+    @Published var shouldOpenWindow = false
+
+    private init() {}
+
+    func requestOpenWindow() {
+        shouldOpenWindow = true
+    }
+}
 
 @main
 struct short_clip_finderApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var appState = AppState()
     @State private var showOnboarding = !OnboardingState.hasCompletedOnboarding
+    @StateObject private var windowOpener = WindowOpener.shared
     @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
@@ -27,24 +41,28 @@ struct short_clip_finderApp: App {
                 .sheet(isPresented: $showOnboarding) {
                     WelcomeView(isPresented: $showOnboarding)
                 }
-                .onReceive(NotificationCenter.default.publisher(for: .openMainWindow)) { _ in
-                    // AppDelegate requested to open main window
-                    openWindow(id: "main")
-                }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 800, height: 600)
+        .defaultLaunchBehavior(.presented)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New from URL...") {
-                    appState.openMainWindow()
+                    openWindow(id: "main")
                 }
                 .keyboardShortcut("n", modifiers: .command)
 
                 Button("New from File...") {
-                    appState.openFilePicker()
+                    openWindow(id: "main")
+                    appState.shouldShowFilePicker = true
                 }
                 .keyboardShortcut("o", modifiers: .command)
+            }
+        }
+        .onChange(of: windowOpener.shouldOpenWindow) { _, shouldOpen in
+            if shouldOpen {
+                windowOpener.shouldOpenWindow = false
+                openWindow(id: "main")
             }
         }
 
@@ -60,35 +78,23 @@ struct short_clip_finderApp: App {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Main window opens automatically via SwiftUI
         NSApp.activate(ignoringOtherApps: true)
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         // Called when Dock icon is clicked
-        showMainWindow()
+        WindowOpener.shared.requestOpenWindow()
+        NSApp.activate(ignoringOtherApps: true)
         return true
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        // Only trigger if there are no visible windows at all
+        // Only trigger if there are no visible normal windows
         let hasAnyVisibleWindow = NSApp.windows.contains { window in
-            window.isVisible && window.level == .normal
+            window.isVisible && window.level == .normal && window.canBecomeKey
         }
         if !hasAnyVisibleWindow {
-            showMainWindow()
+            WindowOpener.shared.requestOpenWindow()
         }
     }
-
-    private func showMainWindow() {
-        // Post notification for SwiftUI to handle via openWindow
-        NotificationCenter.default.post(name: .openMainWindow, object: nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-}
-
-// MARK: - Notifications
-
-extension Notification.Name {
-    static let openMainWindow = Notification.Name("openMainWindow")
 }
