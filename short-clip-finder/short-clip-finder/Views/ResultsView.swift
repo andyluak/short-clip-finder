@@ -42,6 +42,9 @@ struct ResultsView: View {
     @State private var sortOrder: ClipSortOrder = .virality
     @State private var viralityFilter: ViralityFilter = .all
 
+    // Transcript drawer state
+    @State private var showTranscriptDrawer = false
+
     /// Filtered and sorted clips based on current settings
     private var displayedClips: [ClipSuggestion] {
         let filtered = clips.filter { $0.viralityScore >= viralityFilter.minScore }
@@ -59,28 +62,60 @@ struct ResultsView: View {
         return displayedClips[focusedClipIndex]
     }
 
+    /// Current clip time range for transcript highlighting
+    private var currentClipTimeRange: ClosedRange<TimeInterval>? {
+        guard let clip = focusedClip else { return nil }
+        return clip.startTime...clip.endTime
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            header
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
+        HStack(spacing: 0) {
+            // Main content
+            VStack(spacing: 0) {
+                // Header
+                header
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
 
-            Divider()
+                Divider()
 
-            // Clip list
-            if displayedClips.isEmpty {
-                emptyState
-            } else {
-                clipList
+                // Clip list
+                if displayedClips.isEmpty {
+                    emptyState
+                } else {
+                    clipList
+                }
+
+                Divider()
+
+                // Footer
+                footer
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
             }
 
-            Divider()
-
-            // Footer
-            footer
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
+            // Transcript drawer
+            if showTranscriptDrawer {
+                Divider()
+                TranscriptDrawer(
+                    segments: appState.transcriptSegments,
+                    currentClipTimeRange: currentClipTimeRange,
+                    onClose: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showTranscriptDrawer = false
+                        }
+                    },
+                    onTimestampTapped: { timestamp in
+                        // Find clip closest to this timestamp
+                        if let index = displayedClips.firstIndex(where: { $0.startTime <= timestamp && $0.endTime >= timestamp }) {
+                            focusedClipIndex = index
+                        } else if let index = displayedClips.firstIndex(where: { $0.startTime >= timestamp }) {
+                            focusedClipIndex = index
+                        }
+                    }
+                )
+                .transition(.move(edge: .trailing))
+            }
         }
         .sheet(isPresented: Binding(
             get: { appState.showExportSettings },
@@ -144,14 +179,25 @@ struct ResultsView: View {
             toggleFocusedClipExport()
             return .handled
         }
-        // ⌘↵ to export - handled via hidden button below
+        // Keyboard shortcuts - handled via hidden buttons
         .background {
-            Button("Export") {
-                if !selectedClipIDs.isEmpty {
-                    appState.showExportSettings = true
+            Group {
+                // ⌘↵ to export
+                Button("Export") {
+                    if !selectedClipIDs.isEmpty {
+                        appState.showExportSettings = true
+                    }
                 }
+                .keyboardShortcut(.return, modifiers: .command)
+
+                // ⌘T to toggle transcript
+                Button("Transcript") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showTranscriptDrawer.toggle()
+                    }
+                }
+                .keyboardShortcut("t", modifiers: .command)
             }
-            .keyboardShortcut(.return, modifiers: .command)
             .opacity(0)
             .allowsHitTesting(false)
         }
@@ -178,6 +224,18 @@ struct ResultsView: View {
         VStack(spacing: 12) {
             // Top row: Title and selection badge
             HStack {
+                // Back button
+                Button {
+                    appState.newProject()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                        Text("New Video")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text(videoTitle)
                         .font(.headline)
@@ -259,6 +317,23 @@ struct ResultsView: View {
                     .frame(width: 160)
                 }
 
+                Divider()
+                    .frame(height: 20)
+
+                // Transcript toggle
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showTranscriptDrawer.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "text.alignleft")
+                        Text("Transcript")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
                 Spacer()
 
                 // Filtered count if different from total
@@ -297,7 +372,10 @@ struct ResultsView: View {
                                     }
                                 }
                             ),
-                            isFocused: index == focusedClipIndex
+                            isFocused: index == focusedClipIndex,
+                            onTrimUpdate: { newStart, newEnd in
+                                appState.updateClipTimes(clipID: clip.id, start: newStart, end: newEnd)
+                            }
                         )
                         .id(clip.id)
                         .onTapGesture {
@@ -383,6 +461,7 @@ struct ResultsView: View {
             HStack(spacing: 16) {
                 keyboardHint(key: "Up/Down", action: "Navigate")
                 keyboardHint(key: "Space", action: "Select")
+                keyboardHint(key: "Cmd+T", action: "Transcript")
                 keyboardHint(key: "Cmd+Return", action: "Export")
             }
             .font(.caption2)

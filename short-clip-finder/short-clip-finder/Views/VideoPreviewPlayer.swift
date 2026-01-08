@@ -16,22 +16,19 @@ struct VideoPreviewPlayer: View {
     @State private var player: AVPlayer?
     @State private var isPlaying = false
     @State private var thumbnail: NSImage?
+    @State private var isHovered = false
 
     var body: some View {
         ZStack {
+            // Video or thumbnail layer
             if let player {
                 VideoPlayer(player: player)
                     .disabled(true) // Disable default controls
-                    .overlay {
-                        playOverlay
-                    }
+                    .allowsHitTesting(false) // Let taps pass through to overlay
             } else if let thumbnail {
                 Image(nsImage: thumbnail)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .overlay {
-                        playOverlay
-                    }
             } else {
                 Rectangle()
                     .fill(Color.black.opacity(0.8))
@@ -40,6 +37,10 @@ struct VideoPreviewPlayer: View {
                             .scaleEffect(0.8)
                     }
             }
+
+            // Interactive overlay - always present for tap handling
+            playOverlay
+                .contentShape(Rectangle())
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .onAppear {
@@ -49,22 +50,40 @@ struct VideoPreviewPlayer: View {
             player?.pause()
             player = nil
         }
+        .onHover { hovering in
+            isHovered = hovering
+            // Pre-initialize player on hover for faster playback
+            if hovering && player == nil {
+                setupPlayer()
+            }
+        }
         .onTapGesture {
             togglePlayback()
         }
     }
 
     private var playOverlay: some View {
-        Group {
+        ZStack {
+            // Semi-transparent background when paused or hovered while playing
             if !isPlaying {
-                ZStack {
-                    Color.black.opacity(0.3)
+                Color.black.opacity(0.3)
+            } else if isHovered {
+                Color.black.opacity(0.15)
+            } else {
+                Color.clear
+            }
 
-                    Image(systemName: "play.circle.fill")
-                        .font(.system(size: 44))
-                        .foregroundStyle(.white)
-                        .shadow(radius: 4)
-                }
+            // Play/pause icon
+            if !isPlaying {
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(.white)
+                    .shadow(radius: 4)
+            } else if isHovered {
+                Image(systemName: "pause.circle.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(.white.opacity(0.8))
+                    .shadow(radius: 4)
             }
         }
     }

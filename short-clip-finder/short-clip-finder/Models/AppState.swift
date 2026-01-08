@@ -251,6 +251,16 @@ final class AppState {
         currentScreen = .empty
     }
 
+    // MARK: - Clip Management
+
+    /// Update clip start and end times (for trim functionality)
+    func updateClipTimes(clipID: UUID, start: TimeInterval, end: TimeInterval) {
+        if let index = clipSuggestions.firstIndex(where: { $0.id == clipID }) {
+            clipSuggestions[index].startTime = start
+            clipSuggestions[index].endTime = end
+        }
+    }
+
     // MARK: - Export
 
     var selectedClips: [ClipSuggestion] {

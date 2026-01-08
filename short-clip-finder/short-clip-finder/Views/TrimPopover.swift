@@ -19,6 +19,8 @@ struct TrimPopover: View {
     @State private var player: AVPlayer?
     @State private var isDraggingStart = false
     @State private var isDraggingEnd = false
+    @State private var dragStartInitialTime: TimeInterval = 0
+    @State private var dragEndInitialTime: TimeInterval = 0
 
     private let minDuration: TimeInterval = 5  // Minimum 5 seconds
     private let maxDuration: TimeInterval = 90  // Maximum 90 seconds
@@ -139,11 +141,24 @@ struct TrimPopover: View {
 
     // MARK: - Timeline Scrubber
 
+    // Context window: show ±15 seconds around the clip midpoint
+    private var contextStart: TimeInterval {
+        max(0, clip.startTime - 15)
+    }
+
+    private var contextEnd: TimeInterval {
+        clip.endTime + 15
+    }
+
+    private var contextDuration: TimeInterval {
+        contextEnd - contextStart
+    }
+
     private var timelineScrubber: some View {
         GeometryReader { geometry in
             let totalWidth = geometry.size.width
-            let clipStartX = CGFloat((startTime - clip.startTime + 10) / 20) * totalWidth  // Show ±10s context
-            let clipEndX = CGFloat((endTime - clip.startTime + 10) / 20) * totalWidth
+            let clipStartX = CGFloat((startTime - contextStart) / contextDuration) * totalWidth
+            let clipEndX = CGFloat((endTime - contextStart) / contextDuration) * totalWidth
 
             ZStack(alignment: .leading) {
                 // Background track
@@ -159,14 +174,24 @@ struct TrimPopover: View {
 
                 // Start handle
                 trimHandle(isStart: true)
-                    .offset(x: clipStartX - 6)
+                    .offset(x: clipStartX - 10)
+                    .onHover { hovering in
+                        if hovering {
+                            NSCursor.resizeLeftRight.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
                     .gesture(
                         DragGesture()
                             .onChanged { value in
+                                if !isDraggingStart {
+                                    dragStartInitialTime = startTime
+                                }
                                 isDraggingStart = true
-                                let delta = Double(value.translation.width / totalWidth) * 20.0
-                                let newStart = startTime + delta
-                                startTime = max(0, min(newStart, endTime - minDuration))
+                                let delta = Double(value.translation.width / totalWidth) * contextDuration
+                                let newStart = dragStartInitialTime + delta
+                                startTime = max(contextStart, min(newStart, endTime - minDuration))
                                 seekToTime(startTime)
                             }
                             .onEnded { _ in
@@ -176,14 +201,24 @@ struct TrimPopover: View {
 
                 // End handle
                 trimHandle(isStart: false)
-                    .offset(x: clipEndX - 6)
+                    .offset(x: clipEndX - 10)
+                    .onHover { hovering in
+                        if hovering {
+                            NSCursor.resizeLeftRight.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
                     .gesture(
                         DragGesture()
                             .onChanged { value in
+                                if !isDraggingEnd {
+                                    dragEndInitialTime = endTime
+                                }
                                 isDraggingEnd = true
-                                let delta = Double(value.translation.width / totalWidth) * 20.0
-                                let newEnd = endTime + delta
-                                endTime = max(startTime + minDuration, min(newEnd, startTime + maxDuration))
+                                let delta = Double(value.translation.width / totalWidth) * contextDuration
+                                let newEnd = dragEndInitialTime + delta
+                                endTime = max(startTime + minDuration, min(newEnd, min(contextEnd, startTime + maxDuration)))
                                 seekToTime(endTime)
                             }
                             .onEnded { _ in
@@ -196,15 +231,19 @@ struct TrimPopover: View {
     }
 
     private func trimHandle(isStart: Bool) -> some View {
-        RoundedRectangle(cornerRadius: 2)
+        RoundedRectangle(cornerRadius: 3)
             .fill(Color.accentColor)
-            .frame(width: 12, height: 44)
+            .frame(width: 20, height: 48)
             .overlay {
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(Color.white.opacity(0.5))
-                    .frame(width: 2, height: 20)
+                VStack(spacing: 3) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(Color.white.opacity(0.6))
+                            .frame(width: 3, height: 3)
+                    }
+                }
             }
-            .shadow(radius: 2)
+            .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
     }
 
     // MARK: - Time Info

@@ -16,125 +16,30 @@ struct ClipCardView: View {
 
     @State private var isHovered = false
     @State private var showTrimPopover = false
+    @State private var showExpandedPlayer = false
     @State private var isAppearing = false
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Selection indicator bar
-            RoundedRectangle(cornerRadius: 2)
-                .fill(isSelected ? Color.cfAccent : Color.clear)
-                .frame(width: 4)
-                .padding(.vertical, 8)
+        HStack(alignment: .center, spacing: 16) {
+            // Video Preview - fixed width, flush left
+            videoPreview
 
-            HStack(spacing: 16) {
-                // Video Preview with enhanced styling
-                ZStack(alignment: .bottomTrailing) {
-                    VideoPreviewPlayer(
-                        videoURL: videoURL,
-                        startTime: clip.startTime,
-                        endTime: clip.endTime
-                    )
-                    .frame(width: 160, height: 90)
+            // Content - flexible width
+            contentSection
 
-                    // Duration overlay
-                    Text(clip.formattedDuration)
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(.black.opacity(0.75))
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                        .padding(6)
+            // Actions - fixed width
+            actionsSection
+        }
+        .padding(12)
+        .sheet(isPresented: $showExpandedPlayer) {
+            ExpandedVideoPlayer(
+                clip: clip,
+                videoURL: videoURL,
+                onTrimSave: onTrimUpdate,
+                onDismiss: {
+                    showExpandedPlayer = false
                 }
-
-                // Content
-                VStack(alignment: .leading, spacing: 10) {
-                    // Top row: Badge + Hook
-                    HStack(alignment: .top, spacing: 12) {
-                        ViralityBadge(score: clip.viralityScore, level: clip.viralityLevel)
-
-                        Text("\"\(clip.hookQuote)\"")
-                            .font(.system(size: 14, weight: .medium))
-                            .lineLimit(2)
-                            .foregroundStyle(.primary)
-                    }
-
-                    // Time info with enhanced styling
-                    HStack(spacing: 12) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "clock")
-                                .font(.system(size: 11))
-                            Text(clip.formattedTimeRange)
-                                .font(.system(size: 12, design: .monospaced))
-                        }
-                        .foregroundStyle(.secondary)
-                    }
-
-                    // Reasoning with better typography
-                    Text(clip.reasoning)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .lineSpacing(2)
-                }
-
-                Spacer()
-
-                // Enhanced Actions
-                VStack(spacing: 10) {
-                    // Selection toggle button
-                    Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            isSelected.toggle()
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundStyle(isSelected ? Color.cfAccent : .secondary)
-
-                            Text(isSelected ? "Selected" : "Select")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(isSelected ? Color.cfAccent : .secondary)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(isSelected ? Color.cfAccent.opacity(0.12) : Color.secondary.opacity(0.08))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    .buttonStyle(.plain)
-
-                    // Trim button
-                    Button {
-                        showTrimPopover = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "scissors")
-                                .font(.system(size: 11))
-                            Text("Trim")
-                                .font(.system(size: 11, weight: .medium))
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .popover(isPresented: $showTrimPopover, arrowEdge: .trailing) {
-                        TrimPopover(
-                            clip: clip,
-                            videoURL: videoURL,
-                            onSave: { newStart, newEnd in
-                                onTrimUpdate?(newStart, newEnd)
-                                showTrimPopover = false
-                            },
-                            onCancel: {
-                                showTrimPopover = false
-                            }
-                        )
-                    }
-                }
-                .frame(width: 90)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 12)
+            )
         }
         .background {
             RoundedRectangle(cornerRadius: 12)
@@ -170,6 +75,144 @@ struct ClipCardView: View {
         .accessibilityHint(isSelected ? "Selected for export. Press Space to deselect." : "Press Space to select for export.")
         .accessibilityAddTraits(isFocused ? .isSelected : [])
     }
+
+    // MARK: - Video Preview
+
+    private var videoPreview: some View {
+        ZStack(alignment: .bottomTrailing) {
+            VideoPreviewPlayer(
+                videoURL: videoURL,
+                startTime: clip.startTime,
+                endTime: clip.endTime
+            )
+            .frame(width: 160, height: 90)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(alignment: .leading) {
+                // Selection indicator
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.cfAccent)
+                        .frame(width: 4, height: 74)
+                        .offset(x: -2)
+                }
+            }
+
+            // Duration badge
+            Text(clip.formattedDuration)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(.black.opacity(0.75))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .padding(6)
+
+            // Expand button
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        showExpandedPlayer = true
+                    } label: {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(5)
+                            .background(.black.opacity(0.6))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(6)
+                }
+                Spacer()
+            }
+        }
+        .frame(width: 160, height: 90)
+    }
+
+    // MARK: - Content Section
+
+    private var contentSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                ViralityBadge(score: clip.viralityScore, level: clip.viralityLevel)
+                Text("\"\(clip.hookQuote)\"")
+                    .font(.system(size: 14, weight: .medium))
+                    .lineLimit(2)
+                    .foregroundStyle(.primary)
+            }
+
+            HStack(spacing: 4) {
+                Image(systemName: "clock")
+                    .font(.system(size: 11))
+                Text(clip.formattedTimeRange)
+                    .font(.system(size: 12, design: .monospaced))
+            }
+            .foregroundStyle(.secondary)
+
+            Text(clip.reasoning)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .lineSpacing(2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Actions Section
+
+    private var actionsSection: some View {
+        VStack(spacing: 10) {
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    isSelected.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(isSelected ? Color.cfAccent : .secondary)
+                    Text(isSelected ? "Selected" : "Select")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(isSelected ? Color.cfAccent : .secondary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(isSelected ? Color.cfAccent.opacity(0.12) : Color.secondary.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                showTrimPopover = true
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "scissors")
+                        .font(.system(size: 11))
+                    Text("Trim")
+                        .font(.system(size: 11, weight: .medium))
+                }
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .popover(isPresented: $showTrimPopover, arrowEdge: .trailing) {
+                TrimPopover(
+                    clip: clip,
+                    videoURL: videoURL,
+                    onSave: { newStart, newEnd in
+                        onTrimUpdate?(newStart, newEnd)
+                        showTrimPopover = false
+                    },
+                    onCancel: {
+                        showTrimPopover = false
+                    }
+                )
+            }
+        }
+        .frame(width: 110)
+    }
+
+    // MARK: - Styling
 
     private var cardBackgroundColor: Color {
         if isFocused {

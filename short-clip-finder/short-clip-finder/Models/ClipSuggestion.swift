@@ -11,8 +11,8 @@ struct ClipSuggestion: Identifiable, Codable, Sendable {
     let id: UUID
     let viralityScore: Int
     let hookQuote: String
-    let startTime: TimeInterval
-    let endTime: TimeInterval
+    var startTime: TimeInterval
+    var endTime: TimeInterval
     let reasoning: String
 
     var duration: TimeInterval {
