@@ -58,11 +58,24 @@ struct short_clip_finderApp: App {
                 }
                 .keyboardShortcut("o", modifiers: .command)
             }
+
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings...") {
+                    openWindow(id: "settings")
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
         }
         .onChange(of: windowOpener.shouldOpenWindow) { _, shouldOpen in
             if shouldOpen {
                 windowOpener.shouldOpenWindow = false
                 openWindow(id: "main")
+            }
+        }
+        .onChange(of: appState.shouldShowSettings) { _, shouldShow in
+            if shouldShow {
+                appState.shouldShowSettings = false
+                openWindow(id: "settings")
             }
         }
 

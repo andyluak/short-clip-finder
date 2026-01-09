@@ -11,97 +11,220 @@ struct ProcessingView: View {
     let appState: AppState
     let videoTitle: String
 
+    private var isFailed: Bool {
+        if case .failed = appState.currentPhase { return true }
+        return false
+    }
+
+    private var failedMessage: String {
+        if case .failed(let message) = appState.currentPhase {
+            return message
+        }
+        return "An unknown error occurred"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
 
-            // Central focus: Current phase
-            VStack(spacing: Theme.Spacing.xl) {
-                PhaseIcon(phase: appState.currentPhase)
-                    .frame(width: 80, height: 80)
-
-                Text(phaseTitle)
-                    .font(Theme.Typography.displayMedium)
-                    .tracking(-0.3)
-
-                Text(videoTitle)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-
-                // Progress bar
-                VStack(spacing: Theme.Spacing.sm) {
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(Color.cfSurfaceElevated)
-
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(Color.cfAccent)
-                                .frame(width: geo.size.width * progress)
-                                .animation(Theme.Animation.normal, value: progress)
-                        }
-                    }
-                    .frame(width: 300, height: 4)
-
-                    HStack {
-                        Text(phaseStatus)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-
-                        Spacer()
-
-                        Text("\(Int(progress * 100))%")
-                            .font(Theme.Typography.mono)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(width: 300)
-                }
+            // Show failure state or progress state
+            if isFailed {
+                failureContent
+            } else {
+                progressContent
             }
 
             Spacer()
 
-            // Phase steps at bottom
-            HStack(spacing: Theme.Spacing.xl) {
-                PhaseStep(
-                    number: 1,
-                    label: "Download",
-                    isComplete: phaseIndex > 0,
-                    isActive: phaseIndex == 0
-                )
-
-                PhaseConnector(isActive: phaseIndex >= 1)
-
-                PhaseStep(
-                    number: 2,
-                    label: "Transcribe",
-                    isComplete: phaseIndex > 1,
-                    isActive: phaseIndex == 1
-                )
-
-                PhaseConnector(isActive: phaseIndex >= 2)
-
-                PhaseStep(
-                    number: 3,
-                    label: "Analyze",
-                    isComplete: phaseIndex > 2,
-                    isActive: phaseIndex == 2
-                )
+            // Phase steps at bottom (hide when failed)
+            if !isFailed {
+                phaseSteps
+                    .padding(.bottom, Theme.Spacing.xxl)
             }
-            .padding(.bottom, Theme.Spacing.xxl)
 
-            // Cancel button
-            Button("Cancel Processing") {
-                appState.cancelProcessing()
-            }
-            .font(.system(size: 12))
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .padding(.bottom, Theme.Spacing.xl)
+            // Cancel/Start Over button
+            bottomButton
+                .padding(.bottom, Theme.Spacing.xl)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.cfSurface)
+    }
+
+    // MARK: - Progress Content
+
+    private var progressContent: some View {
+        VStack(spacing: Theme.Spacing.xl) {
+            PhaseIcon(phase: appState.currentPhase)
+                .frame(width: 80, height: 80)
+
+            Text(phaseTitle)
+                .font(Theme.Typography.displayMedium)
+                .tracking(-0.3)
+
+            Text(videoTitle)
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            // Progress bar
+            VStack(spacing: Theme.Spacing.sm) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.cfSurfaceElevated)
+
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.cfAccent)
+                            .frame(width: geo.size.width * progress)
+                            .animation(Theme.Animation.normal, value: progress)
+                    }
+                }
+                .frame(width: 300, height: 4)
+
+                HStack {
+                    Text(phaseStatus)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    // Show ETA if we have enough progress
+                    if let eta = estimatedTimeRemaining, progress >= 0.05 {
+                        Text(eta)
+                            .font(Theme.Typography.mono)
+                            .foregroundStyle(.tertiary)
+
+                        Text("•")
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    Text("\(Int(progress * 100))%")
+                        .font(Theme.Typography.mono)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(width: 300)
+            }
+        }
+    }
+
+    // MARK: - Failure Content
+
+    private var failureContent: some View {
+        VStack(spacing: Theme.Spacing.xl) {
+            // Error icon
+            ZStack {
+                Circle()
+                    .fill(Color.cfError.opacity(0.15))
+                    .frame(width: 100, height: 100)
+
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(Color.cfError)
+            }
+
+            VStack(spacing: Theme.Spacing.sm) {
+                Text("Processing Failed")
+                    .font(Theme.Typography.displayMedium)
+                    .tracking(-0.3)
+
+                Text(failedMessage)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .frame(maxWidth: 400)
+            }
+
+            // Action buttons
+            HStack(spacing: Theme.Spacing.md) {
+                Button {
+                    appState.retryLastOperation()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Try Again")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.cfAccent)
+
+                Button("Start Over") {
+                    appState.newProject()
+                }
+                .buttonStyle(.bordered)
+            }
+
+            // Help text
+            VStack(spacing: Theme.Spacing.xs) {
+                Text("Common issues:")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.tertiary)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    helpItem("Check your internet connection")
+                    helpItem("Verify your API key in Settings")
+                    helpItem("Try a shorter or different video")
+                }
+            }
+            .padding(.top, Theme.Spacing.md)
+        }
+    }
+
+    private func helpItem(_ text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "circle.fill")
+                .font(.system(size: 4))
+            Text(text)
+                .font(.system(size: 11))
+        }
+        .foregroundStyle(.tertiary)
+    }
+
+    // MARK: - Phase Steps
+
+    private var phaseSteps: some View {
+        HStack(spacing: Theme.Spacing.xl) {
+            PhaseStep(
+                number: 1,
+                label: "Download",
+                isComplete: phaseIndex > 0,
+                isActive: phaseIndex == 0
+            )
+
+            PhaseConnector(isActive: phaseIndex >= 1)
+
+            PhaseStep(
+                number: 2,
+                label: "Transcribe",
+                isComplete: phaseIndex > 1,
+                isActive: phaseIndex == 1
+            )
+
+            PhaseConnector(isActive: phaseIndex >= 2)
+
+            PhaseStep(
+                number: 3,
+                label: "Analyze",
+                isComplete: phaseIndex > 2,
+                isActive: phaseIndex == 2
+            )
+        }
+    }
+
+    // MARK: - Bottom Button
+
+    private var bottomButton: some View {
+        Group {
+            if !isFailed {
+                Button("Cancel Processing") {
+                    appState.cancelProcessing()
+                }
+                .font(.system(size: 12))
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            }
+        }
     }
 
     // MARK: - Computed Properties
@@ -143,6 +266,42 @@ struct ProcessingView: View {
         case .analyzing: return 2
         case .complete: return 3
         case .failed: return -1
+        }
+    }
+
+    /// Estimated time remaining based on elapsed time and progress
+    private var estimatedTimeRemaining: String? {
+        guard let startTime = appState.phaseStartTime,
+              progress > 0 && progress < 1 else {
+            return nil
+        }
+
+        let elapsed = Date().timeIntervalSince(startTime)
+
+        // Calculate ETA based on current speed
+        let estimatedTotal = elapsed / progress
+        let remaining = estimatedTotal - elapsed
+
+        // Don't show if remaining time is too short or too long
+        guard remaining > 2 && remaining < 3600 else {
+            return nil
+        }
+
+        return formatTimeRemaining(remaining)
+    }
+
+    private func formatTimeRemaining(_ seconds: TimeInterval) -> String {
+        let totalSeconds = Int(seconds)
+        if totalSeconds < 60 {
+            return "~\(totalSeconds)s left"
+        } else {
+            let minutes = totalSeconds / 60
+            let secs = totalSeconds % 60
+            if secs == 0 {
+                return "~\(minutes)m left"
+            } else {
+                return "~\(minutes)m \(secs)s left"
+            }
         }
     }
 }

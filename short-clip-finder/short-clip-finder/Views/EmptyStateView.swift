@@ -13,10 +13,35 @@ struct EmptyStateView: View {
     let appState: AppState
     @State private var urlText = ""
     @State private var isDropTargeted = false
+    @State private var hasAPIKey = KeychainManager.hasOpenAIKey
 
     var body: some View {
         GeometryReader { geometry in
-            HStack(spacing: 0) {
+            VStack(spacing: 0) {
+                // API Key Warning Banner
+                if !hasAPIKey {
+                    APIKeyWarningBanner {
+                        appState.shouldShowSettings = true
+                    }
+                }
+
+                // Settings button in top-right corner
+                HStack {
+                    Spacer()
+                    Button {
+                        appState.shouldShowSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Settings (⌘,)")
+                }
+                .padding(.horizontal, Theme.Spacing.lg)
+                .padding(.top, Theme.Spacing.md)
+
+                HStack(spacing: 0) {
                 // Left: Main action area
                 VStack(alignment: .leading, spacing: 0) {
                     Spacer()
@@ -69,6 +94,7 @@ struct EmptyStateView: View {
                     // Keyboard hints
                     HStack(spacing: Theme.Spacing.lg) {
                         KeyboardHint(key: "⌘N", label: "New URL")
+                        KeyboardHint(key: "⌘,", label: "Settings")
                         KeyboardHint(key: "⌘O", label: "Open File")
                     }
 
@@ -101,8 +127,12 @@ struct EmptyStateView: View {
                 .padding(.trailing, Theme.Spacing.xxxl)
                 .frame(width: geometry.size.width * 0.4)
             }
+            }
         }
         .background(Color.cfSurface)
+        .onAppear {
+            hasAPIKey = KeychainManager.hasOpenAIKey
+        }
         .fileImporter(
             isPresented: Binding(
                 get: { appState.shouldShowFilePicker },
@@ -265,6 +295,55 @@ struct RecentProjectRow: View {
             withAnimation(Theme.Animation.fast) {
                 isHovered = hovering
             }
+        }
+    }
+}
+
+// MARK: - API Key Warning Banner
+
+struct APIKeyWarningBanner: View {
+    let onOpenSettings: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(spacing: Theme.Spacing.md) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 14))
+                .foregroundStyle(Color.cfWarning)
+
+            Text("OpenAI API key not configured")
+                .font(.system(size: 13, weight: .medium))
+
+            Text("—")
+                .foregroundStyle(.tertiary)
+
+            Text("Analysis won't work until you add your API key")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Button {
+                onOpenSettings()
+            } label: {
+                HStack(spacing: 4) {
+                    Text("Open Settings")
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .font(.system(size: 12, weight: .medium))
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Color.cfWarning)
+            .controlSize(.small)
+        }
+        .padding(.horizontal, Theme.Spacing.lg)
+        .padding(.vertical, Theme.Spacing.sm)
+        .background(Color.cfWarning.opacity(0.12))
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.cfWarning.opacity(0.3))
+                .frame(height: 1)
         }
     }
 }

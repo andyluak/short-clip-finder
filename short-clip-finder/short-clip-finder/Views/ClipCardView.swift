@@ -15,9 +15,9 @@ struct ClipCardView: View {
     var isFocused: Bool = false
     var onTrimUpdate: ((TimeInterval, TimeInterval) -> Void)?
     var onSegmentEdited: ((UUID, String) -> Void)?
+    var onDismissPlayer: (() -> Void)?
 
     @State private var isHovered = false
-    @State private var showTrimPopover = false
     @State private var showExpandedPlayer = false
     @State private var isAppearing = false
 
@@ -33,7 +33,9 @@ struct ClipCardView: View {
             actionsSection
         }
         .padding(12)
-        .sheet(isPresented: $showExpandedPlayer) {
+        .sheet(isPresented: $showExpandedPlayer, onDismiss: {
+            onDismissPlayer?()
+        }) {
             ExpandedVideoPlayer(
                 clip: clip,
                 videoURL: videoURL,
@@ -188,30 +190,17 @@ struct ClipCardView: View {
             .buttonStyle(.plain)
 
             Button {
-                showTrimPopover = true
+                showExpandedPlayer = true
             } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: "scissors")
+                    Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 11))
-                    Text("Trim")
+                    Text("Edit")
                         .font(.system(size: 11, weight: .medium))
                 }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .popover(isPresented: $showTrimPopover, arrowEdge: .trailing) {
-                TrimPopover(
-                    clip: clip,
-                    videoURL: videoURL,
-                    onSave: { newStart, newEnd in
-                        onTrimUpdate?(newStart, newEnd)
-                        showTrimPopover = false
-                    },
-                    onCancel: {
-                        showTrimPopover = false
-                    }
-                )
-            }
         }
         .frame(width: 110)
     }

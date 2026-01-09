@@ -45,6 +45,11 @@ struct ResultsView: View {
     // Transcript drawer state
     @State private var showTranscriptDrawer = false
 
+    // Undo state for deselect all
+    @State private var previousSelection: Set<UUID>?
+    @State private var showUndoToast = false
+    @State private var undoTask: Task<Void, Never>?
+
     /// Filtered and sorted clips based on current settings
     private var displayedClips: [ClipSuggestion] {
         let filtered = clips.filter { $0.viralityScore >= viralityFilter.minScore }
@@ -120,6 +125,29 @@ struct ResultsView: View {
                 .transition(.move(edge: .trailing))
             }
         }
+        .overlay(alignment: .bottom) {
+            if showUndoToast {
+                UndoToast(
+                    message: "Selection cleared",
+                    onUndo: {
+                        if let previous = previousSelection {
+                            selectedClipIDs = previous
+                        }
+                        showUndoToast = false
+                        undoTask?.cancel()
+                        previousSelection = nil
+                    },
+                    onDismiss: {
+                        showUndoToast = false
+                        undoTask?.cancel()
+                        previousSelection = nil
+                    }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .padding(.bottom, 80)
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showUndoToast)
         .sheet(isPresented: Binding(
             get: { appState.showExportSettings },
             set: { appState.showExportSettings = $0 }
@@ -164,6 +192,16 @@ struct ResultsView: View {
         .focused($isListFocused)
         .onAppear {
             isListFocused = true
+        }
+        .onChange(of: appState.showExportSettings) { _, isShowing in
+            if !isShowing {
+                isListFocused = true
+            }
+        }
+        .onChange(of: appState.showExportProgress) { _, isShowing in
+            if !isShowing {
+                isListFocused = true
+            }
         }
         .onKeyPress(.upArrow) {
             navigateClip(direction: -1)
@@ -268,9 +306,29 @@ struct ResultsView: View {
 
                 Button {
                     if selectedClipIDs.count == displayedClips.count && !displayedClips.isEmpty {
+                        // Save selection for undo before clearing
+                        previousSelection = selectedClipIDs
                         selectedClipIDs.removeAll()
+                        showUndoToast = true
+
+                        // Auto-dismiss after 5 seconds
+                        undoTask?.cancel()
+                        undoTask = Task {
+                            try? await Task.sleep(for: .seconds(5))
+                            if !Task.isCancelled {
+                                await MainActor.run {
+                                    withAnimation(.easeOut(duration: 0.2)) {
+                                        showUndoToast = false
+                                        previousSelection = nil
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         selectedClipIDs = Set(displayedClips.map(\.id))
+                        // Hide undo toast if selecting all
+                        showUndoToast = false
+                        undoTask?.cancel()
                     }
                 } label: {
                     if selectedClipIDs.count == displayedClips.count && !displayedClips.isEmpty {
@@ -374,6 +432,8 @@ struct ResultsView: View {
                                     } else {
                                         selectedClipIDs.remove(clip.id)
                                     }
+                                    // Restore focus after selection change
+                                    isListFocused = true
                                 }
                             ),
                             isFocused: index == focusedClipIndex,
@@ -382,15 +442,24 @@ struct ResultsView: View {
                             },
                             onSegmentEdited: { segmentID, newText in
                                 appState.updateSegmentText(segmentID: segmentID, newText: newText)
+                            },
+                            onDismissPlayer: {
+                                isListFocused = true
                             }
                         )
                         .id(clip.id)
                         .onTapGesture {
                             focusedClipIndex = index
+                            isListFocused = true
                         }
                     }
                 }
                 .padding(20)
+            }
+            .focusable()
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isListFocused = true
             }
             .onChange(of: focusedClipIndex) { _, newIndex in
                 if newIndex >= 0 && newIndex < displayedClips.count {
@@ -497,6 +566,52 @@ struct ResultsView: View {
             return "\(minutes):\(String(format: "%02d", secs))"
         } else {
             return "\(secs)s"
+        }
+    }
+}
+
+// MARK: - Undo Toast
+
+struct UndoToast: View {
+    let message: String
+    let onUndo: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: Theme.Spacing.md) {
+            Image(systemName: "arrow.uturn.backward.circle.fill")
+                .font(.system(size: 16))
+                .foregroundStyle(Color.cfAccent)
+
+            Text(message)
+                .font(.system(size: 13, weight: .medium))
+
+            Button("Undo") {
+                onUndo()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .tint(Color.cfAccent)
+
+            Button {
+                onDismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, Theme.Spacing.lg)
+        .padding(.vertical, Theme.Spacing.sm)
+        .background {
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.lg)
+                .fill(Color.cfSurfaceElevated)
+                .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.lg)
+                .strokeBorder(Color.cfBorder, lineWidth: 1)
         }
     }
 }

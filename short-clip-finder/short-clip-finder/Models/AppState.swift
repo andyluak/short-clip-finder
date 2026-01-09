@@ -23,6 +23,7 @@ final class AppState {
     var shouldShowSettings = false
 
     var currentPhase: ProcessingPhase = .transcribing(progress: 0)
+    var phaseStartTime: Date?
     var videoTitle: String = ""
     var videoURL: URL?
     var errorMessage: String?
@@ -61,6 +62,23 @@ final class AppState {
         }
     }
 
+    /// Update current phase and track start time for ETA calculations
+    private func setPhase(_ phase: ProcessingPhase) {
+        // Only reset start time if we're entering a new phase type
+        let shouldResetTimer: Bool
+        switch (currentPhase, phase) {
+        case (.downloading, .downloading), (.transcribing, .transcribing), (.analyzing, .analyzing):
+            shouldResetTimer = false
+        default:
+            shouldResetTimer = true
+        }
+
+        currentPhase = phase
+        if shouldResetTimer {
+            phaseStartTime = Date()
+        }
+    }
+
     func openMainWindow() {
         if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" }) {
             window.makeKeyAndOrderFront(nil)
@@ -87,7 +105,7 @@ final class AppState {
         processingTask = Task {
             do {
                 // Load/download Whisper model (WhisperKit caches automatically)
-                currentPhase = .downloading(progress: 0, status: "Loading Whisper model...")
+                setPhase(.downloading(progress: 0, status: "Loading Whisper model..."))
                 try await transcriptionService.loadModel { [weak self] progress in
                     Task { @MainActor in
                         self?.currentPhase = .downloading(progress: progress, status: "Loading Whisper model...")
@@ -95,7 +113,7 @@ final class AppState {
                 }
 
                 // Transcribe
-                currentPhase = .transcribing(progress: 0)
+                setPhase(.transcribing(progress: 0))
                 let segments = try await transcriptionService.transcribe(videoURL: url) { [weak self] progress in
                     Task { @MainActor in
                         self?.currentPhase = .transcribing(progress: progress)
@@ -111,7 +129,7 @@ final class AppState {
                 // potentially reducing total processing time by 20-30% for longer videos.
                 // Implementation would require streaming segments from TranscriptionService
                 // and batching them to AnalysisService as they become available.
-                currentPhase = .analyzing(progress: 0)
+                setPhase(.analyzing(progress: 0))
                 let videoDuration = try await getVideoDuration(url: url)
                 let suggestions = try await analysisService.analyze(
                     segments: segments,
@@ -126,7 +144,7 @@ final class AppState {
                 // Don't auto-select clips - let user choose
                 selectedClipIDs = []
 
-                currentPhase = .complete
+                setPhase(.complete)
                 currentScreen = .results
 
                 // Auto-save project
@@ -135,7 +153,7 @@ final class AppState {
             } catch is CancellationError {
                 currentScreen = .empty
             } catch {
-                currentPhase = .failed(message: error.localizedDescription)
+                setPhase(.failed(message: error.localizedDescription))
                 errorMessage = error.localizedDescription
                 currentError = AppError(from: error)
             }
@@ -154,7 +172,7 @@ final class AppState {
         processingTask = Task {
             do {
                 // Download video
-                currentPhase = .downloading(progress: 0, status: "Fetching video info...")
+                setPhase(.downloading(progress: 0, status: "Fetching video info..."))
 
                 let (localURL, metadata) = try await downloadService.download(
                     url: urlString,
@@ -177,7 +195,7 @@ final class AppState {
                 try await transcriptionService.loadModel { _ in }
 
                 // Transcribe
-                currentPhase = .transcribing(progress: 0)
+                setPhase(.transcribing(progress: 0))
                 let segments = try await transcriptionService.transcribe(videoURL: localURL) { [weak self] progress in
                     Task { @MainActor in
                         self?.currentPhase = .transcribing(progress: progress)
@@ -187,7 +205,7 @@ final class AppState {
                 transcriptSegments = segments
 
                 // AI Analysis
-                currentPhase = .analyzing(progress: 0)
+                setPhase(.analyzing(progress: 0))
                 let suggestions = try await analysisService.analyze(
                     segments: segments,
                     videoDuration: metadata.duration
@@ -201,7 +219,7 @@ final class AppState {
                 // Don't auto-select clips - let user choose
                 selectedClipIDs = []
 
-                currentPhase = .complete
+                setPhase(.complete)
                 currentScreen = .results
 
                 // Auto-save project
@@ -210,7 +228,7 @@ final class AppState {
             } catch is CancellationError {
                 currentScreen = .empty
             } catch {
-                currentPhase = .failed(message: error.localizedDescription)
+                setPhase(.failed(message: error.localizedDescription))
                 errorMessage = error.localizedDescription
                 currentError = AppError(from: error)
             }
@@ -487,7 +505,8 @@ final class AppState {
         transcriptSegments = []
         clipSuggestions = []
         selectedClipIDs = []
-        currentPhase = .transcribing(progress: 0)
+        phaseStartTime = nil
+        setPhase(.transcribing(progress: 0))
     }
 
     /// Auto-save project after processing completes successfully
