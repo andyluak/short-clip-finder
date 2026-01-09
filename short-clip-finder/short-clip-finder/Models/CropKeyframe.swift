@@ -106,37 +106,71 @@ struct CropTrack: Sendable, Codable {
         )
     }
 
-    /// Generate FFmpeg crop filter expression
-    /// Returns format: "crop=w:h:x:y" with keyframe expressions
-    func ffmpegCropFilter() -> String {
-        // Calculate crop dimensions for 9:16
-        var w = Int(videoHeight * 9 / 16)
-        var h = Int(videoHeight)
+    /// Generate FFmpeg crop filter expression for a given aspect ratio
+    /// Returns format: "crop=w:h:x:y"
+    func ffmpegCropFilter(for format: ExportFormat) -> String {
+        let aspectRatio = format.aspectRatio  // width/height
 
-        // Ensure even dimensions (required by some codecs)
+        var w: Int
+        var h: Int
+
+        if aspectRatio < 1 {
+            // Vertical format (9:16) - width limited
+            h = Int(videoHeight)
+            w = Int(videoHeight * aspectRatio)
+        } else if aspectRatio > 1 {
+            // Horizontal format (16:9) - shouldn't need crop usually
+            w = Int(videoWidth)
+            h = Int(videoWidth / aspectRatio)
+        } else {
+            // Square (1:1)
+            let size = min(videoWidth, videoHeight)
+            w = Int(size)
+            h = Int(size)
+        }
+
+        // Ensure even dimensions (required by libx264)
         w = w - (w % 2)
         h = h - (h % 2)
 
-        // Ensure crop width doesn't exceed video width
+        // Ensure crop doesn't exceed video bounds
         if CGFloat(w) > videoWidth {
             w = Int(videoWidth) - (Int(videoWidth) % 2)
-            h = Int(CGFloat(w) * 16 / 9)
+            h = Int(CGFloat(w) / aspectRatio)
             h = h - (h % 2)
         }
+        if CGFloat(h) > videoHeight {
+            h = Int(videoHeight) - (Int(videoHeight) % 2)
+            w = Int(CGFloat(h) * aspectRatio)
+            w = w - (w % 2)
+        }
 
+        // Calculate X position (face tracking or center)
         var x: Int
         if keyframes.isEmpty {
             // Center crop
             x = Int((videoWidth - CGFloat(w)) / 2)
         } else {
-            // Use average face position
+            // Use average face position from keyframes
             let avgX = keyframes.reduce(0.0) { $0 + $1.cropRect.minX } / CGFloat(keyframes.count)
             x = Int(avgX)
+            print("[CropTrack] Using face-tracked X position: \(x) from \(keyframes.count) keyframes")
         }
 
-        // Clamp x to valid range
-        x = max(0, min(x, Int(videoWidth) - w))
+        // Calculate Y position (center vertically)
+        let y = Int((videoHeight - CGFloat(h)) / 2)
 
-        return "crop=\(w):\(h):\(x):0"
+        // Clamp to valid range
+        x = max(0, min(x, Int(videoWidth) - w))
+        let clampedY = max(0, min(y, Int(videoHeight) - h))
+
+        print("[CropTrack] Crop: \(w)x\(h) at (\(x), \(clampedY)) for \(format.rawValue) format")
+
+        return "crop=\(w):\(h):\(x):\(clampedY)"
+    }
+
+    /// Legacy method - defaults to vertical
+    func ffmpegCropFilter() -> String {
+        ffmpegCropFilter(for: .vertical)
     }
 }

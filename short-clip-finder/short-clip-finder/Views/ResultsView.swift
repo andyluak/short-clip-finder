@@ -112,6 +112,9 @@ struct ResultsView: View {
                         } else if let index = displayedClips.firstIndex(where: { $0.startTime >= timestamp }) {
                             focusedClipIndex = index
                         }
+                    },
+                    onSegmentEdited: { segmentID, newText in
+                        appState.updateSegmentText(segmentID: segmentID, newText: newText)
                     }
                 )
                 .transition(.move(edge: .trailing))
@@ -362,6 +365,7 @@ struct ResultsView: View {
                         ClipCardView(
                             clip: clip,
                             videoURL: videoURL,
+                            transcriptSegments: appState.transcriptSegments,
                             isSelected: Binding(
                                 get: { selectedClipIDs.contains(clip.id) },
                                 set: { isSelected in
@@ -375,6 +379,9 @@ struct ResultsView: View {
                             isFocused: index == focusedClipIndex,
                             onTrimUpdate: { newStart, newEnd in
                                 appState.updateClipTimes(clipID: clip.id, start: newStart, end: newEnd)
+                            },
+                            onSegmentEdited: { segmentID, newText in
+                                appState.updateSegmentText(segmentID: segmentID, newText: newText)
                             }
                         )
                         .id(clip.id)

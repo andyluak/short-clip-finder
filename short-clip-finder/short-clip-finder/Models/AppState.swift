@@ -261,6 +261,59 @@ final class AppState {
         }
     }
 
+    // MARK: - Transcript Management
+
+    /// Update transcript segment text (for editing)
+    /// This updates the source of truth and will reflect in all views
+    func updateSegmentText(segmentID: UUID, newText: String) {
+        if let index = transcriptSegments.firstIndex(where: { $0.id == segmentID }) {
+            let oldSegment = transcriptSegments[index]
+            // Create new segment with updated text but preserve timing
+            // Note: Word-level timing is preserved but may become stale if text changes significantly
+            transcriptSegments[index] = TranscriptSegment(
+                id: oldSegment.id,
+                text: newText,
+                start: oldSegment.start,
+                end: oldSegment.end,
+                words: reParseWords(newText: newText, originalWords: oldSegment.words)
+            )
+        }
+    }
+
+    /// Re-parse words from edited text, trying to preserve original timing
+    private func reParseWords(newText: String, originalWords: [TranscriptWord]) -> [TranscriptWord] {
+        let newWords = newText.split(separator: " ").map { String($0) }
+        guard !newWords.isEmpty else { return [] }
+
+        // If word count matches, just update text and keep timing
+        if newWords.count == originalWords.count {
+            return zip(newWords, originalWords).map { newWord, original in
+                TranscriptWord(
+                    id: original.id,
+                    text: newWord,
+                    start: original.start,
+                    end: original.end
+                )
+            }
+        }
+
+        // Otherwise, distribute timing evenly across new words
+        guard let firstWord = originalWords.first, let lastWord = originalWords.last else {
+            return newWords.map { TranscriptWord(text: $0, start: 0, end: 0) }
+        }
+
+        let totalDuration = lastWord.end - firstWord.start
+        let wordDuration = totalDuration / Double(newWords.count)
+
+        return newWords.enumerated().map { index, word in
+            TranscriptWord(
+                text: word,
+                start: firstWord.start + (Double(index) * wordDuration),
+                end: firstWord.start + (Double(index + 1) * wordDuration)
+            )
+        }
+    }
+
     // MARK: - Export
 
     var selectedClips: [ClipSuggestion] {
@@ -288,12 +341,16 @@ final class AppState {
             )
         }
 
+        // Capture transcript segments for export
+        let segments = transcriptSegments
+
         exportTask = Task {
             do {
                 let urls = try await exportService.exportClips(
                     clips: clipsToExport,
                     videoURL: videoURL,
-                    settings: exportSettings
+                    settings: exportSettings,
+                    transcriptSegments: segments
                 ) { [weak self] progress in
                     Task { @MainActor in
                         self?.exportProgressMap[progress.jobId] = progress

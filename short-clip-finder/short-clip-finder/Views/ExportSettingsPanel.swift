@@ -30,6 +30,7 @@ struct ExportSettingsPanel: View {
                     formatSection
                     qualitySection
                     cropSection
+                    subtitleSection
                     outputSection
                 }
                 .padding(Theme.Spacing.xl)
@@ -40,7 +41,7 @@ struct ExportSettingsPanel: View {
             // Footer
             footer
         }
-        .frame(width: 440, height: 520)
+        .frame(width: 440, height: 620)
         .background(Color(.windowBackgroundColor))
     }
 
@@ -258,6 +259,55 @@ struct ExportSettingsPanel: View {
         .buttonStyle(.plain)
         .onHover { hovering in
             hoveredCrop = hovering ? mode : nil
+        }
+    }
+
+    // MARK: - Subtitle Section
+
+    private var subtitleSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            sectionHeader("Subtitles", icon: "captions.bubble")
+
+            HStack(spacing: Theme.Spacing.md) {
+                Toggle(isOn: $settings.subtitlesEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Burn-in subtitles")
+                            .font(.system(size: 12, weight: .medium))
+
+                        Text("Word-by-word captions baked into video")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .toggleStyle(.switch)
+            }
+            .padding(Theme.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
+                    .fill(settings.subtitlesEnabled ? Color.cfTeal.opacity(0.08) : Color.secondary.opacity(0.04))
+            )
+
+            // Style info when enabled
+            if settings.subtitlesEnabled {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "textformat")
+                        .foregroundStyle(Color.cfTeal)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Montserrat Bold · White with black stroke")
+                            .font(.system(size: 10, weight: .medium))
+
+                        Text("2-4 words per frame, optimized for viral shorts")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .padding(Theme.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
+                        .fill(Color.cfTeal.opacity(0.08))
+                )
+            }
         }
     }
 

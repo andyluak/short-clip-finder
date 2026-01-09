@@ -12,6 +12,8 @@ struct ExportSettings: Codable, Sendable {
     var quality: ExportQuality
     var cropMode: CropMode
     var outputDirectory: URL
+    var subtitlesEnabled: Bool
+    var subtitleStyle: SubtitleStyle
 
     static var `default`: ExportSettings {
         ExportSettings(
@@ -19,7 +21,9 @@ struct ExportSettings: Codable, Sendable {
             quality: .hd1080,
             cropMode: .autoTrack,
             outputDirectory: FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
-                .appendingPathComponent("ClipFinder Exports")
+                .appendingPathComponent("ClipFinder Exports"),
+            subtitlesEnabled: true,
+            subtitleStyle: .default
         )
     }
 

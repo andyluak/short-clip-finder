@@ -10,9 +10,11 @@ import SwiftUI
 struct ClipCardView: View {
     let clip: ClipSuggestion
     let videoURL: URL
+    let transcriptSegments: [TranscriptSegment]
     @Binding var isSelected: Bool
     var isFocused: Bool = false
     var onTrimUpdate: ((TimeInterval, TimeInterval) -> Void)?
+    var onSegmentEdited: ((UUID, String) -> Void)?
 
     @State private var isHovered = false
     @State private var showTrimPopover = false
@@ -35,7 +37,9 @@ struct ClipCardView: View {
             ExpandedVideoPlayer(
                 clip: clip,
                 videoURL: videoURL,
+                transcriptSegments: transcriptSegments,
                 onTrimSave: onTrimUpdate,
+                onSegmentEdited: onSegmentEdited,
                 onDismiss: {
                     showExpandedPlayer = false
                 }
@@ -257,6 +261,7 @@ struct ClipCardView: View {
     ClipCardView(
         clip: mockClip,
         videoURL: URL(fileURLWithPath: "/tmp/test.mp4"),
+        transcriptSegments: [],
         isSelected: .constant(true)
     )
     .frame(width: 600)

@@ -36,6 +36,7 @@ actor ExportService {
         clips: [ClipSuggestion],
         videoURL: URL,
         settings: ExportSettings,
+        transcriptSegments: [TranscriptSegment] = [],
         progressHandler: @escaping @Sendable (ExportProgress) -> Void
     ) async throws -> [URL] {
         isCancelled = false
@@ -47,6 +48,14 @@ actor ExportService {
         )
 
         var exportedURLs: [URL] = []
+        var tempSubtitleFiles: [URL] = []
+
+        defer {
+            // Clean up temp subtitle files
+            for file in tempSubtitleFiles {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
 
         for (index, clip) in clips.enumerated() {
             if isCancelled { throw ExportError.cancelled }
@@ -93,6 +102,21 @@ actor ExportService {
 
                 if isCancelled { throw ExportError.cancelled }
 
+                // Generate subtitle file if enabled
+                var subtitleURL: URL?
+                if settings.subtitlesEnabled && !transcriptSegments.isEmpty {
+                    let generator = SubtitleGenerator(
+                        style: settings.subtitleStyle,
+                        format: settings.format
+                    )
+                    subtitleURL = try generator.writeASSFile(
+                        segments: transcriptSegments,
+                        clipStart: clip.startTime,
+                        clipEnd: clip.endTime
+                    )
+                    tempSubtitleFiles.append(subtitleURL!)
+                }
+
                 // Report encoding starting
                 progressHandler(ExportProgress(
                     jobId: clip.id,
@@ -107,7 +131,8 @@ actor ExportService {
                     outputURL: outputURL,
                     clip: clip,
                     cropTrack: cropTrack,
-                    settings: settings
+                    settings: settings,
+                    subtitleURL: subtitleURL
                 ) { encodeProgress in
                     progressHandler(ExportProgress(
                         jobId: clip.id,
@@ -208,6 +233,7 @@ actor ExportService {
         clip: ClipSuggestion,
         cropTrack: CropTrack,
         settings: ExportSettings,
+        subtitleURL: URL? = nil,
         progressHandler: @escaping @Sendable (Double) -> Void
     ) async throws {
         let ffmpegPath = try getFFmpegPath()
@@ -227,7 +253,7 @@ actor ExportService {
 
         // Add crop filter for non-horizontal formats
         if settings.format != .horizontal {
-            let cropFilter = cropTrack.ffmpegCropFilter()
+            let cropFilter = cropTrack.ffmpegCropFilter(for: settings.format)
             filters.append(cropFilter)
             print("[ExportService] Crop filter: \(cropFilter)")
         }
@@ -238,6 +264,21 @@ actor ExportService {
         let scaleFilter = "scale=\(width):\(height):flags=lanczos"
         filters.append(scaleFilter)
         print("[ExportService] Scale filter: \(scaleFilter) (source: \(Int(cropTrack.videoWidth))x\(Int(cropTrack.videoHeight)))")
+
+        // Add subtitle filter if we have subtitles
+        if let subtitleURL = subtitleURL {
+            // For FFmpeg's ass filter, we need careful escaping:
+            // The ass filter expects the path in single quotes
+            // Colons must be escaped with backslash, and backslashes doubled
+            let escapedPath = subtitleURL.path
+                .replacingOccurrences(of: "'", with: "'\\''")
+                .replacingOccurrences(of: ":", with: "\\:")
+
+            let subtitleFilter = "ass='\(escapedPath)'"
+            filters.append(subtitleFilter)
+            print("[ExportService] Subtitle file exists: \(FileManager.default.fileExists(atPath: subtitleURL.path))")
+            print("[ExportService] Subtitle filter: \(subtitleFilter)")
+        }
 
         if !filters.isEmpty {
             args += ["-vf", filters.joined(separator: ",")]
